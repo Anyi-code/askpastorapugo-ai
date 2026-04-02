@@ -4,3 +4,12 @@
 venv/
 .env.local
 .DS_Store
+*.wav
+*.mp3
+*.txt
+*.pkl
+*.csv
+.ipynb_checkpoints/
+.gradio/
+*.ipynb
+*.json

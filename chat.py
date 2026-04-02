@@ -192,7 +192,7 @@ def chat_page():
     </div>
     """, unsafe_allow_html=True)
 
-    voice_data = st.audio_input("", label_visibility="collapsed")
+    voice_data = st.audio_input("🎤 Speak")
 
     # ================= CHAT INPUT =================
     user_input = st.chat_input("Ask Pastor Apugo AI...")

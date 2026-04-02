@@ -2,14 +2,17 @@ import tempfile
 import streamlit as st
 from openai import OpenAI
 import os
+from dotenv import load_dotenv
 
 # ================= API KEY =================
 def get_api_key():
     try:
+        # Try Streamlit secrets (for cloud)
         return st.secrets["OPENAI_API_KEY"]
-    except Exception as e:
-        st.error(f"❌ API key not found in Streamlit secrets: {e}")
-        return None
+    except Exception:
+        # Fallback to .env (for local)
+        load_dotenv()
+        return os.getenv("OPENAI_API_KEY")
 
 @st.cache_resource
 def get_client():

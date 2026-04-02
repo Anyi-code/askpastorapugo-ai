@@ -6,9 +6,10 @@ import os
 # ================= API KEY =================
 def get_api_key():
     try:
-        return st.secrets["OPENAI_API_KEY"]
+        with open("openai API key.txt", "r") as f:
+            return f.read().strip()
     except Exception as e:
-        st.error(f"❌ API key not found in Streamlit secrets: {e}")
+        st.error(f"❌ API key file missing or unreadable: {e}")
         return None
 
 @st.cache_resource

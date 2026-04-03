@@ -3,10 +3,11 @@ import json
 import os
 from datetime import datetime
 import bcrypt
+from utils import log_error
 
 # ================= ENV CHECK =================
 def is_cloud():
-    return not os.path.exists("users_backup.json")
+    return "streamlit.app" in str(st.get_option("browser.serverAddress"))
 
 # ================= PASSWORD =================
 def hash_pw(password):
@@ -34,7 +35,7 @@ def auth_page():
 
     st.title("ASKPASTORAPUGO AI")
 
-    # 🔥 CLOUD-ONLY (ADMIN CAN USE LOCAL)
+    # 🔥 CLOUD-ONLY (ADMIN LOCAL ALLOWED)
     if not is_cloud() and st.session_state.get("username") != "admin":
         st.warning("⚠️ Please use the deployed app to register/login.")
         st.stop()
@@ -69,14 +70,13 @@ def auth_page():
                     st.session_state.authenticated = True
 
                     user["last_login"] = str(datetime.now())
-
-                    # 🔥 ENSURE SAVE (PERSISTENCE)
                     save_data(data)
 
                     st.success("Login successful")
                     st.rerun()
 
             st.error("Invalid username or password")
+            log_error(username, "Login failed", "auth.py")
 
         # ================= REGISTER =================
         else:
@@ -85,16 +85,14 @@ def auth_page():
                 st.error("Username and password required")
                 return
 
-            # 🚫 Prevent duplicate usernames
             if any(u["username"] == username for u in users):
                 st.error("Username already exists")
                 return
 
-            # 🔥 NORMALIZE INVITE
             if invite:
                 invite = invite.strip().upper()
 
-            # ================= FIRST USER (ADMIN) =================
+            # FIRST USER → ADMIN
             if not users:
                 users.append({
                     "username": username,
@@ -106,12 +104,10 @@ def auth_page():
                     "status": "active",
                     "last_login": ""
                 })
-
                 save_data(data)
                 st.success("Admin account created. Please login.")
                 return
 
-            # ================= INVITE VALIDATION =================
             if not invite:
                 st.error("Invite code required")
                 return
@@ -128,15 +124,14 @@ def auth_page():
 
             if valid_index is None:
                 st.error("Invalid invite code")
+                log_error(username, "Invalid invite code", "auth.py")
                 return
 
             inviter = invites[valid_index]["created_by"]
 
-            # 🔥 MARK INVITE AS USED
             invites[valid_index]["status"] = "used"
             invites[valid_index]["used_by"] = username
 
-            # ================= CREATE USER =================
             users.append({
                 "username": username,
                 "password": hash_pw(password),
@@ -148,7 +143,6 @@ def auth_page():
                 "last_login": ""
             })
 
-            # 🔥 ENSURE SAVE (PERSISTENCE)
             save_data(data)
 
             st.success("Registration successful. Please login.")

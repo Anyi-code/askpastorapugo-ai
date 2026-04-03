@@ -10,10 +10,16 @@ from utils import (
     enforce_format
 )
 
+# 🔥 NEW IMPORT
+from access_control import enforce_time_access, update_time_used
+
 # ================= CHAT PAGE =================
 def chat_page():
 
     st.title("Ask Pastor Apugo AI")
+
+    # 🔥 ENFORCE TIME ACCESS
+    enforce_time_access()
 
     # ================= SESSION INIT =================
     if "chat" not in st.session_state:
@@ -95,6 +101,9 @@ def chat_page():
 
                 st.session_state.chat.append(("assistant", clean_sermon))
 
+                # 🔥 UPDATE TIME
+                update_time_used(st.session_state.get("username"))
+
     with colB:
         if st.button("Clear Sermon"):
             st.rerun()
@@ -125,13 +134,11 @@ def chat_page():
     # ================= PROCESS MESSAGE =================
     if user_input:
 
-        # USER MESSAGE
         st.session_state.chat.append(("user", user_input))
 
         with st.chat_message("user"):
             st.markdown(user_input)
 
-        # AI RESPONSE
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
 
@@ -146,14 +153,16 @@ def chat_page():
                     st.session_state.get("username", "User")
                 )
 
-                # 🔥 FIX TEXT DISPLAY (NO BLOCK FORMAT)
                 clean_response = response.replace("\n", "\n\n")
 
                 st.markdown(clean_response)
 
-                # ================= VOICE OUTPUT =================
+                # ================= VOICE =================
                 audio_file = speak(response)
                 if audio_file:
                     st.audio(audio_file, format="audio/mp3")
 
         st.session_state.chat.append(("assistant", clean_response))
+
+        # 🔥 UPDATE TIME AFTER RESPONSE
+        update_time_used(st.session_state.get("username"))

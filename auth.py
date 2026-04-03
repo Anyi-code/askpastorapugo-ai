@@ -1,8 +1,12 @@
 import streamlit as st
-import json, os
-import pandas as pd
+import json
+import os
 from datetime import datetime
 import bcrypt
+
+# ================= ENV CHECK =================
+def is_cloud():
+    return not os.path.exists("users_backup.json")
 
 # ================= PASSWORD =================
 def hash_pw(password):
@@ -14,38 +18,40 @@ def check_pw(password, hashed):
     except:
         return False
 
-# ================= USERS =================
-def load_users():
+# ================= LOAD / SAVE =================
+def load_data():
     if not os.path.exists("users.json"):
-        return []
+        return {"users": [], "invites": []}
     with open("users.json", "r") as f:
         return json.load(f)
 
-def save_users(users):
+def save_data(data):
     with open("users.json", "w") as f:
-        json.dump(users, f, indent=4)
+        json.dump(data, f, indent=4)
 
 # ================= AUTH PAGE =================
 def auth_page():
 
     st.title("ASKPASTORAPUGO AI")
 
+    # 🔥 CLOUD-ONLY (ADMIN CAN USE LOCAL)
+    if not is_cloud() and st.session_state.get("username") != "admin":
+        st.warning("⚠️ Please use the deployed app to register/login.")
+        st.stop()
+
     mode = st.radio("Login / Register", ["Login", "Register"], horizontal=True)
 
-    # 🔥 FORM FIX (CRITICAL)
     with st.form("auth_form"):
-
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
-
         invite = st.text_input("Invite Code") if mode == "Register" else None
-
         submitted = st.form_submit_button(mode)
 
-    # ================= PROCESS =================
     if submitted:
 
-        users = load_users()
+        data = load_data()
+        users = data["users"]
+        invites = data["invites"]
 
         # ================= LOGIN =================
         if mode == "Login":
@@ -63,7 +69,9 @@ def auth_page():
                     st.session_state.authenticated = True
 
                     user["last_login"] = str(datetime.now())
-                    save_users(users)
+
+                    # 🔥 ENSURE SAVE (PERSISTENCE)
+                    save_data(data)
 
                     st.success("Login successful")
                     st.rerun()
@@ -77,67 +85,70 @@ def auth_page():
                 st.error("Username and password required")
                 return
 
-            # 🚫 Prevent duplicate users
+            # 🚫 Prevent duplicate usernames
             if any(u["username"] == username for u in users):
                 st.error("Username already exists")
                 return
 
-            # ================= FIRST USER =================
+            # 🔥 NORMALIZE INVITE
+            if invite:
+                invite = invite.strip().upper()
+
+            # ================= FIRST USER (ADMIN) =================
             if not users:
                 users.append({
                     "username": username,
                     "password": hash_pw(password),
                     "role": "admin",
                     "created_at": str(datetime.now()),
-                    "last_login": "",
-                    "status": "active"
+                    "invite_code_used": "ADMIN",
+                    "invited_by": "system",
+                    "status": "active",
+                    "last_login": ""
                 })
 
-                save_users(users)
+                save_data(data)
                 st.success("Admin account created. Please login.")
                 return
 
-            # ================= INVITE REQUIRED =================
+            # ================= INVITE VALIDATION =================
             if not invite:
                 st.error("Invite code required")
                 return
 
-            if not os.path.exists("invite_codes.csv"):
-                st.error("Invite system missing")
-                return
+            valid_index = None
 
-            df = pd.read_csv("invite_codes.csv", dtype=str).fillna("")
-            valid = False
-            inviter = None
+            for i, inv in enumerate(invites):
+                code_db = str(inv.get("code", "")).strip().upper()
+                status = str(inv.get("status", "")).strip().lower()
 
-            for i, row in df.iterrows():
-                if row["code"].strip() == invite.strip() and row["status"] in ["", "unused"]:
-
-                    valid = True
-                    inviter = row["created_by"]
-
-                    df.at[i, "status"] = "used"
-                    df.at[i, "used_by"] = username
-                    df.to_csv("invite_codes.csv", index=False)
-
+                if code_db == invite and status == "unused":
+                    valid_index = i
                     break
 
-            if not valid:
+            if valid_index is None:
                 st.error("Invalid invite code")
                 return
+
+            inviter = invites[valid_index]["created_by"]
+
+            # 🔥 MARK INVITE AS USED
+            invites[valid_index]["status"] = "used"
+            invites[valid_index]["used_by"] = username
 
             # ================= CREATE USER =================
             users.append({
                 "username": username,
                 "password": hash_pw(password),
-                "invite_code": invite,
-                "invited_by": inviter,
-                "created_at": str(datetime.now()),
                 "role": "user",
+                "created_at": str(datetime.now()),
+                "invite_code_used": invite,
+                "invited_by": inviter,
                 "status": "active",
-                "last_login": "",
-                "total_questions": 0
+                "last_login": ""
             })
 
-            save_users(users)
+            # 🔥 ENSURE SAVE (PERSISTENCE)
+            save_data(data)
+
             st.success("Registration successful. Please login.")

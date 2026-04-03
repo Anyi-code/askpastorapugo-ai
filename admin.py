@@ -1,118 +1,117 @@
 import streamlit as st
 import pandas as pd
 import os, json
-from filelock import FileLock
 from checklist import run_checklist
+import random, string
 
-# ================= ADMIN VERIFICATION =================
-def verify_admin():
+# ================= LOAD / SAVE =================
+def load_data():
     if not os.path.exists("users.json"):
-        return False
+        return {"users": [], "invites": []}
+    with open("users.json", "r") as f:
+        return json.load(f)
 
-    users = json.load(open("users.json"))
-
-    for u in users:
-        if u["username"] == st.session_state.get("username") and u.get("role") == "admin":
-            return True
-
-    return False
+def save_data(data):
+    with open("users.json", "w") as f:
+        json.dump(data, f, indent=4)
 
 # ================= ADMIN PAGE =================
 def admin_page():
 
-    # 🔒 HARD LOCK
-    if not st.session_state.get("authenticated") or not verify_admin():
-        st.error("Unauthorized access")
-        st.stop()
-
     st.title("Admin Dashboard")
+
+    data = load_data()
+    users = data.get("users", [])
+    invites = data.get("invites", [])
 
     # ================= USERS =================
     st.subheader("Users")
 
-    if os.path.exists("users.json"):
-        users = json.load(open("users.json"))
-        names = [u["username"] for u in users]
+    if users:
+        df_users = pd.DataFrame(users)
+        st.dataframe(df_users, width="stretch")
 
-        selected = st.selectbox("Search user", names)
-        st.write(next(u for u in users if u["username"] == selected))
+        usernames = df_users["username"].tolist()
+        selected = st.selectbox("View User Details", usernames)
+
+        user_data = next(u for u in users if u["username"] == selected)
+        st.json(user_data)
+    else:
+        st.info("No users found")
 
     # ================= INVITES =================
     st.subheader("Invite Codes")
 
-    if st.button("Generate Code"):
-        import random, string
+    col1, col2 = st.columns(2)
+
+    if col1.button("Generate Code"):
         code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
-        df = pd.DataFrame([[code, "admin", "", "unused"]],
-                          columns=["code","created_by","used_by","status"])
+        invites.append({
+            "code": code,
+            "created_by": st.session_state.get("username", "admin"),
+            "used_by": "",
+            "status": "unused"
+        })
 
-        with FileLock("invite_codes.csv.lock"):
-            df.to_csv("invite_codes.csv",
-                      mode='a',
-                      header=not os.path.exists("invite_codes.csv"),
-                      index=False)
+        save_data(data)
+        st.success(f"Code generated: {code}")
+        st.rerun()
 
-        st.success(f"Code Generated: {code}")
+    if invites:
+        df_inv = pd.DataFrame(invites)
 
-    if os.path.exists("invite_codes.csv"):
-        st.dataframe(pd.read_csv("invite_codes.csv"))
+        st.dataframe(df_inv, width="stretch")
+
+        # 🔥 FILTERS
+        status_filter = st.selectbox("Filter by status", ["all", "unused", "used"])
+
+        if status_filter != "all":
+            df_inv = df_inv[df_inv["status"] == status_filter]
+
+        st.write("Filtered View")
+        st.dataframe(df_inv, width="stretch")
+    else:
+        st.info("No invite codes available")
 
     # ================= PENDING QA =================
     st.subheader("Pending Q&A")
 
     if os.path.exists("pending_qa.csv"):
-        df = pd.read_csv("pending_qa.csv").fillna("")
+        df = pd.read_csv("pending_qa.csv")
 
         if df.empty:
             st.info("No pending questions")
         else:
             for i, row in df.iterrows():
+                with st.expander(row["question"][:80]):
 
-                question = str(row.get("question", ""))
-                answer = str(row.get("answer", ""))
-                user = str(row.get("user", ""))
-                category = str(row.get("category", ""))
-                scripture = str(row.get("scripture", ""))
-
-                with st.expander(question[:80]):
-
-                    st.markdown(f"**User:** {user}")
-                    if category:
-                        st.markdown(f"**Category:** {category}")
-                    if scripture:
-                        st.markdown(f"**Scripture:** {scripture}")
-
-                    st.markdown("**Answer:**")
-                    st.write(answer)
+                    st.write(f"👤 User: {row.get('user','')}")
+                    st.write(f"❓ Question: {row['question']}")
+                    st.write(f"💬 Answer: {row['answer']}")
 
                     c1, c2 = st.columns(2)
 
-                    # ✅ APPROVE
                     if c1.button("Approve", key=f"approve_{i}"):
 
-                        with FileLock("qa_dataset.csv.lock"):
-                            if os.path.exists("qa_dataset.csv"):
-                                main = pd.read_csv("qa_dataset.csv").fillna("")
-                            else:
-                                main = pd.DataFrame(columns=df.columns)
+                        if os.path.exists("qa_dataset.csv"):
+                            main = pd.read_csv("qa_dataset.csv")
+                        else:
+                            main = pd.DataFrame(columns=df.columns)
 
-                            main = pd.concat([main, pd.DataFrame([row])])
-                            main.to_csv("qa_dataset.csv", index=False)
+                        main = pd.concat([main, pd.DataFrame([row])])
+                        main.to_csv("qa_dataset.csv", index=False)
 
-                        with FileLock("pending_qa.csv.lock"):
-                            df.drop(i, inplace=True)
-                            df.to_csv("pending_qa.csv", index=False)
+                        df.drop(i, inplace=True)
+                        df.to_csv("pending_qa.csv", index=False)
 
-                        st.success("Approved and added to dataset")
+                        st.success("Approved")
                         st.rerun()
 
-                    # ❌ REJECT
                     if c2.button("Reject", key=f"reject_{i}"):
 
-                        with FileLock("pending_qa.csv.lock"):
-                            df.drop(i, inplace=True)
-                            df.to_csv("pending_qa.csv", index=False)
+                        df.drop(i, inplace=True)
+                        df.to_csv("pending_qa.csv", index=False)
 
                         st.warning("Rejected")
                         st.rerun()
@@ -121,85 +120,81 @@ def admin_page():
     st.subheader("Dataset")
 
     if os.path.exists("qa_dataset.csv"):
-        df = pd.read_csv("qa_dataset.csv").fillna("")
+        df = pd.read_csv("qa_dataset.csv")
 
-        for i, row in df.iterrows():
+        if df.empty:
+            st.info("Dataset is empty")
+        else:
+            for i, row in df.iterrows():
+                with st.expander(row["question"][:80]):
 
-            question = str(row.get("question", ""))
-            answer = str(row.get("answer", ""))
+                    new_answer = st.text_area(
+                        "Edit Answer",
+                        row["answer"],
+                        key=f"edit_{i}"
+                    )
 
-            with st.expander(question[:80]):
+                    c1, c2 = st.columns(2)
 
-                new_answer = st.text_area("Edit Answer", answer, key=f"edit_{i}")
-
-                c1, c2 = st.columns(2)
-
-                # ✏️ UPDATE
-                if c1.button("Update", key=f"update_{i}"):
-
-                    with FileLock("qa_dataset.csv.lock"):
+                    if c1.button("Update", key=f"update_{i}"):
                         df.loc[i, "answer"] = new_answer
                         df.to_csv("qa_dataset.csv", index=False)
+                        st.success("Updated")
+                        st.rerun()
 
-                    st.success("Updated")
-                    st.rerun()
+                    if c2.button("Delete", key=f"delete_{i}"):
 
-                # 🗑️ DELETE → TRASH
-                if c2.button("Delete", key=f"delete_{i}"):
+                        trash = pd.DataFrame([row])
+                        trash.to_csv(
+                            "deleted_qa.csv",
+                            mode='a',
+                            header=not os.path.exists("deleted_qa.csv"),
+                            index=False
+                        )
 
-                    trash_row = pd.DataFrame([row])
-
-                    with FileLock("deleted_qa.csv.lock"):
-                        trash_row.to_csv("deleted_qa.csv",
-                                         mode='a',
-                                         header=not os.path.exists("deleted_qa.csv"),
-                                         index=False)
-
-                    with FileLock("qa_dataset.csv.lock"):
                         df.drop(i, inplace=True)
                         df.to_csv("qa_dataset.csv", index=False)
 
-                    st.warning("Moved to Trash")
-                    st.rerun()
+                        st.warning("Moved to trash")
+                        st.rerun()
 
     # ================= TRASH =================
     st.subheader("Trash")
 
     if os.path.exists("deleted_qa.csv"):
-        trash = pd.read_csv("deleted_qa.csv").fillna("")
+        trash = pd.read_csv("deleted_qa.csv")
 
-        for i, row in trash.iterrows():
+        if trash.empty:
+            st.info("Trash is empty")
+        else:
+            for i, row in trash.iterrows():
+                with st.expander(row["question"][:80]):
 
-            question = str(row.get("question", ""))
+                    c1, c2 = st.columns(2)
 
-            with st.expander(question[:80]):
+                    if c1.button("Restore", key=f"restore_{i}"):
 
-                c1, c2 = st.columns(2)
+                        if os.path.exists("qa_dataset.csv"):
+                            main = pd.read_csv("qa_dataset.csv")
+                        else:
+                            main = pd.DataFrame(columns=trash.columns)
 
-                # 🔄 RESTORE
-                if c1.button("Restore", key=f"restore_{i}"):
-
-                    with FileLock("qa_dataset.csv.lock"):
-                        main = pd.read_csv("qa_dataset.csv").fillna("")
                         main = pd.concat([main, pd.DataFrame([row])])
                         main.to_csv("qa_dataset.csv", index=False)
 
-                    with FileLock("deleted_qa.csv.lock"):
                         trash.drop(i, inplace=True)
                         trash.to_csv("deleted_qa.csv", index=False)
 
-                    st.success("Restored")
-                    st.rerun()
+                        st.success("Restored")
+                        st.rerun()
 
-                # ❌ DELETE PERMANENTLY
-                if c2.button("Delete Permanently", key=f"perm_{i}"):
+                    if c2.button("Delete Permanently", key=f"perm_{i}"):
 
-                    with FileLock("deleted_qa.csv.lock"):
                         trash.drop(i, inplace=True)
                         trash.to_csv("deleted_qa.csv", index=False)
 
-                    st.error("Deleted permanently")
-                    st.rerun()
+                        st.error("Deleted permanently")
+                        st.rerun()
 
     # ================= SYSTEM CHECK =================
     st.subheader("System Health Check")

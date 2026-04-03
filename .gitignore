@@ -13,3 +13,5 @@ venv/
 .gradio/
 *.ipynb
 *.json
+user.json
+openai API key.txt

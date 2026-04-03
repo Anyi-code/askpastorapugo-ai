@@ -453,3 +453,18 @@ admin,jesus,"Dear admin,
 ⚠️ API key not configured
 
 Remain Blessed",,,jesus,
+admin,Jesus flogged the buyers and sellers in the temple,"Dear admin,
+
+⚠️ AI Error: Error code: 401 - {'error': {'message': 'Incorrect API key provided: your_key*here. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_api_key'}}
+
+Remain Blessed",,,jesus flogged the buyers and sellers in the temple,
+admin,"⚠️ Transcription error: Error code: 401 - {'error': {'message': 'Incorrect API key provided: your_key*here. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_api_key'}}","Dear admin,
+
+⚠️ AI Error: Error code: 401 - {'error': {'message': 'Incorrect API key provided: your_key*here. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_api_key'}}
+
+Remain Blessed",,,"⚠️ transcription error: error code: 401 - {'error': {'message': 'incorrect api key provided: your_key*here. you can find your api key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'param': none, 'code': 'invalid_api_key'}}",
+admin,who is jesus,"Dear admin,
+
+⚠️ AI Error: Connection error.
+
+Remain Blessed",,,who is jesus,

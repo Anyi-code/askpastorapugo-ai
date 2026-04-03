@@ -47,7 +47,7 @@ def generate_sermon(topic, username):
         log_error(username, str(e), "generate_sermon")
         return "Error generating sermon."
 
-# ================= AUDIO =================
+# ================= AUDIO TRANSCRIPTION =================
 def transcribe_audio(audio_file):
     try:
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
@@ -90,10 +90,29 @@ def enforce_format(response, username):
 
     return response
 
+# ================= PREMIUM TEXT TO SPEECH =================
+def speak(text):
+    try:
+        response = client.audio.speech.create(
+            model="gpt-4o-mini-tts",
+            voice="alloy",
+            input=text
+        )
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
+            f.write(response.content)
+            audio_path = f.name
+
+        return audio_path
+
+    except Exception as e:
+        log_error("system", str(e), "speak")
+        return None
+
 # ================= TELEGRAM =================
 def send_telegram_alert(message):
-    BOT_TOKEN = os.getenv("BOT_TOKEN") or "PASTE_YOUR_BOT_TOKEN_HERE"
-    CHAT_ID = os.getenv("CHAT_ID") or "PASTE_YOUR_CHAT_ID_HERE"
+    BOT_TOKEN = os.getenv("BOT_TOKEN") or "8609344390:AAEKRxKl220-RPPmSzjtlpVCRmjaZQgUwD8"
+    CHAT_ID = os.getenv("CHAT_ID") or "1380080803"
 
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
@@ -119,7 +138,6 @@ def log_error(username, error, location="unknown"):
         "time": str(datetime.now())
     }
 
-    # 🔥 TELEGRAM ALERT
     msg = f"""
 🚨 ERROR ALERT
 User: {log_entry['username']}
@@ -130,7 +148,6 @@ Time: {log_entry['time']}
 
     send_telegram_alert(msg)
 
-    # 🔥 SAVE LOG
     if os.path.exists(log_file):
         with open(log_file, "r") as f:
             try:
@@ -145,6 +162,5 @@ Time: {log_entry['time']}
     with open(log_file, "w") as f:
         json.dump(logs, f, indent=4)
 
-    # 🔥 ADMIN ALERT
     if st.session_state.get("role") == "admin":
         st.toast(f"🚨 Error: {error}")

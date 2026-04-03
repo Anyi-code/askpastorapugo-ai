@@ -29,7 +29,7 @@ def admin_page():
 
     if users:
         df_users = pd.DataFrame(users)
-        st.dataframe(df_users, use_container_width=True)
+        st.dataframe(df_users, width="stretch")
     else:
         st.info("No users found")
 
@@ -52,7 +52,7 @@ def admin_page():
 
     if invites:
         df_inv = pd.DataFrame(invites)
-        st.dataframe(df_inv, use_container_width=True)
+        st.dataframe(df_inv, width="stretch")
     else:
         st.info("No invite codes")
 
@@ -65,7 +65,7 @@ def admin_page():
 
         if logs:
             df_logs = pd.DataFrame(logs[::-1])
-            st.dataframe(df_logs, use_container_width=True)
+            st.dataframe(df_logs, width="stretch")
         else:
             st.success("No errors 🎉")
     else:

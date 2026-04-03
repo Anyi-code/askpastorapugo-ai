@@ -10,34 +10,14 @@ from utils import (
     enforce_format
 )
 
-# ================= MASTER PROMPT =================
-MASTER_PROMPT = """
-YOU ARE ASKPASTORAPUGO_AI — A BIBLE-BASED SCHOLAR, CHRIST-CENTERED, COMPASSIONATE, PROPHETIC TEACHING ASSISTANT.
-
-You speak with apostolic authority, deep revelation, and prophetic boldness,
-in the style of Bishop David Oyedepo and Apostle Arome Osai.
-
-NON-NEGOTIABLE RULES:
-- Every response MUST include scriptures written in full
-- Every response MUST point to Jesus Christ
-- Every response MUST end with a prophetic declaration
-- No shallow answers
-- No casual tone
-- Maintain structured teaching
-
-STRUCTURE:
-CORE DEFINITION
-SCRIPTURAL AUTHORITY
-REVELATION DIMENSIONS
-CHRIST CONNECTION
-PRACTICAL IMPLICATION
-PROPHETIC DECLARATION
-"""
-
 # ================= CHAT PAGE =================
 def chat_page():
 
     st.title("Ask Pastor Apugo AI")
+
+    # ================= SESSION INIT =================
+    if "chat" not in st.session_state:
+        st.session_state.chat = []
 
     # ================= TOP BAR =================
     col1, col2, col3, col4 = st.columns(4)
@@ -83,9 +63,6 @@ def chat_page():
                 st.error("Passwords do not match")
 
     # ================= CHAT HISTORY =================
-    if "chat" not in st.session_state:
-        st.session_state.chat = []
-
     for role, message in st.session_state.chat:
         with st.chat_message(role):
             st.markdown(message)
@@ -101,15 +78,9 @@ def chat_page():
         if st.button("Generate Sermon"):
             if sermon_topic:
 
-                strict_prompt = f"Teach strictly on this topic without adding unrelated ideas: {sermon_topic}"
-
-                sermon = stream_response(
-                    [
-                        {"role": "system", "content": MASTER_PROMPT},
-                        {"role": "user", "content": strict_prompt}
-                    ],
-                    st.session_state.get("username", "User"),
-                    st
+                sermon = generate_sermon(
+                    sermon_topic,
+                    st.session_state.get("username", "User")
                 )
 
                 sermon = enforce_format(
@@ -117,10 +88,12 @@ def chat_page():
                     st.session_state.get("username", "User")
                 )
 
-                with st.chat_message("assistant"):
-                    st.markdown(sermon)
+                clean_sermon = sermon.replace("\n", "\n\n")
 
-                st.session_state.chat.append(("assistant", sermon))
+                with st.chat_message("assistant"):
+                    st.markdown(clean_sermon)
+
+                st.session_state.chat.append(("assistant", clean_sermon))
 
     with colB:
         if st.button("Clear Sermon"):
@@ -131,11 +104,14 @@ def chat_page():
     # ================= MICROPHONE =================
     st.caption("🎤 Tap to speak (mobile supported)")
 
-    audio = st.audio_input("")
+    audio = st.audio_input("🎤 Tap and speak")
+
     user_input = None
 
-    if audio:
-        text = transcribe_audio(audio)
+    if audio is not None:
+        with st.spinner("Listening..."):
+            text = transcribe_audio(audio)
+
         if text:
             st.success(f"You said: {text}")
             user_input = text
@@ -149,19 +125,18 @@ def chat_page():
     # ================= PROCESS MESSAGE =================
     if user_input:
 
+        # USER MESSAGE
         st.session_state.chat.append(("user", user_input))
 
         with st.chat_message("user"):
             st.markdown(user_input)
 
+        # AI RESPONSE
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
 
                 response = stream_response(
-                    [
-                        {"role": "system", "content": MASTER_PROMPT},
-                        {"role": "user", "content": user_input}
-                    ],
+                    [{"role": "user", "content": user_input}],
                     st.session_state.get("username", "User"),
                     st
                 )
@@ -171,14 +146,14 @@ def chat_page():
                     st.session_state.get("username", "User")
                 )
 
-                # 🔥 CLEAN DISPLAY FIX (NO BLOCK TEXT)
-                formatted = response.replace("\n\n", "\n")
+                # 🔥 FIX TEXT DISPLAY (NO BLOCK FORMAT)
+                clean_response = response.replace("\n", "\n\n")
 
-                st.markdown(formatted)
+                st.markdown(clean_response)
 
-                # ================= VOICE =================
+                # ================= VOICE OUTPUT =================
                 audio_file = speak(response)
                 if audio_file:
-                    st.audio(audio_file)
+                    st.audio(audio_file, format="audio/mp3")
 
-        st.session_state.chat.append(("assistant", formatted))
+        st.session_state.chat.append(("assistant", clean_response))

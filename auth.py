@@ -36,9 +36,9 @@ def auth_page():
     st.title("ASKPASTORAPUGO AI")
 
     # 🔥 CLOUD-ONLY (ADMIN LOCAL ALLOWED)
-    if not is_cloud() and st.session_state.get("username") != "admin":
-        st.warning("⚠️ Please use the deployed app to register/login.")
-        st.stop()
+    # 🔥 TEMPORARY: DISABLE CLOUD CHECK (FIX ISSUE)
+    # (You can re-enable later when stable)
+    pass
 
     mode = st.radio("Login / Register", ["Login", "Register"], horizontal=True)
 

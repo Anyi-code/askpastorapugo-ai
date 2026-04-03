@@ -1,8 +1,10 @@
 import streamlit as st
 import pandas as pd
 import os, json
-from checklist import run_checklist
 import random, string
+
+# 🔥 NEW HEALTH DASHBOARD
+from health_dashboard import run_health_dashboard
 
 # 🔥 TIME CONTROL
 from access_control import assign_time_to_user
@@ -52,14 +54,14 @@ def save_data(data):
 # ================= ADMIN PAGE =================
 def admin_page():
 
-    st.title("Admin Dashboard")
+    st.title("🛠️ Admin Dashboard")
 
     data = load_data()
     users = data.get("users", [])
     invites = data.get("invites", [])
 
     # ================= USERS =================
-    st.subheader("Users")
+    st.subheader("👥 Users")
 
     if users and len(users) > 0:
         df_users = pd.DataFrame(users)
@@ -119,7 +121,7 @@ def admin_page():
         st.info("ℹ️ No users available for time assignment.")
 
     # ================= INVITES =================
-    st.subheader("Invite Codes")
+    st.subheader("🎟️ Invite Codes")
 
     if st.button("Generate Code"):
         code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
@@ -156,6 +158,6 @@ def admin_page():
     else:
         st.success("No logs yet 🎉")
 
-    # ================= SYSTEM CHECK =================
-    st.subheader("System Health Check")
-    run_checklist()
+    # ================= SYSTEM HEALTH =================
+    st.subheader("🧠 System Health Dashboard")
+    run_health_dashboard()

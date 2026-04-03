@@ -16,3 +16,4 @@ venv/
 user.json
 openai API key.txt
 error_logs.json
+backups/

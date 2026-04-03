@@ -84,17 +84,20 @@ def generate_sermon(topic, username):
 # ================= AUDIO TRANSCRIPTION =================
 def transcribe_audio(audio_file):
     try:
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        import tempfile
+
+        # Save uploaded audio properly
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
             tmp.write(audio_file.read())
             tmp_path = tmp.name
 
+        # Send correct file format
         with open(tmp_path, "rb") as f:
             transcript = client.audio.transcriptions.create(
                 model="gpt-4o-mini-transcribe",
                 file=f
             )
 
-        os.remove(tmp_path)
         return transcript.text
 
     except Exception as e:

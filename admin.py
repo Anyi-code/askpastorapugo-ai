@@ -4,19 +4,50 @@ import os, json
 from checklist import run_checklist
 import random, string
 
-# 🔥 NEW IMPORT
+# 🔥 TIME CONTROL
 from access_control import assign_time_to_user
+
 
 # ================= LOAD / SAVE =================
 def load_data():
     if not os.path.exists("users.json"):
-        return {"users": [], "invites": []}
-    with open("users.json", "r") as f:
-        return json.load(f)
+        data = {"users": [], "invites": []}
+    else:
+        with open("users.json", "r") as f:
+            data = json.load(f)
+
+    # 🔥 AUTO CREATE ADMIN IF EMPTY
+    if not data.get("users"):
+
+        from auth import hash_pw
+
+        admin_user = {
+            "username": "admin",
+            "password": hash_pw("admin123"),
+            "role": "admin",
+            "created_at": "",
+            "invite_code_used": "SYSTEM",
+            "invited_by": "SYSTEM",
+            "status": "active",
+            "last_login": "",
+            "time_allocated": None,
+            "time_used": 0
+        }
+
+        data["users"] = [admin_user]
+
+        with open("users.json", "w") as f:
+            json.dump(data, f, indent=4)
+
+        st.warning("⚠️ Default admin created → username: admin | password: admin123")
+
+    return data
+
 
 def save_data(data):
     with open("users.json", "w") as f:
         json.dump(data, f, indent=4)
+
 
 # ================= ADMIN PAGE =================
 def admin_page():
@@ -30,17 +61,17 @@ def admin_page():
     # ================= USERS =================
     st.subheader("Users")
 
-    if users:
+    if users and len(users) > 0:
         df_users = pd.DataFrame(users)
 
-        # 🔥 ENSURE TIME COLUMNS EXIST
+        # 🔥 ENSURE TIME COLUMNS
         if "time_allocated" not in df_users.columns:
             df_users["time_allocated"] = None
 
         if "time_used" not in df_users.columns:
             df_users["time_used"] = 0
 
-        # 🔥 CALCULATE REMAINING TIME
+        # 🔥 CALCULATE REMAINING
         df_users["time_remaining"] = df_users.apply(
             lambda row: (
                 round(row["time_allocated"] - row["time_used"], 2)
@@ -50,7 +81,6 @@ def admin_page():
             axis=1
         )
 
-        # 🔥 CLEAN COLUMN ORDER
         display_cols = [
             "username",
             "role",
@@ -68,13 +98,14 @@ def admin_page():
         st.dataframe(df_users[display_cols], width="stretch")
 
     else:
-        st.info("No users found")
+        st.warning("⚠️ No users found. Register users first.")
 
     # ================= TIME CONTROL =================
     st.subheader("⏱ Assign Time to User (Minutes)")
 
-    if users:
-        usernames = [u["username"] for u in users]
+    if users and len(users) > 0:
+
+        usernames = [u.get("username", "unknown") for u in users]
 
         selected_user = st.selectbox("Select User", usernames)
         minutes = st.number_input("Minutes", min_value=1, step=1)
@@ -83,6 +114,9 @@ def admin_page():
             assign_time_to_user(selected_user, minutes)
             st.success(f"{minutes} minutes assigned to {selected_user}")
             st.rerun()
+
+    else:
+        st.info("ℹ️ No users available for time assignment.")
 
     # ================= INVITES =================
     st.subheader("Invite Codes")
@@ -101,7 +135,7 @@ def admin_page():
         st.success(f"Code generated: {code}")
         st.rerun()
 
-    if invites:
+    if invites and len(invites) > 0:
         df_inv = pd.DataFrame(invites)
         st.dataframe(df_inv, width="stretch")
     else:

@@ -7,7 +7,7 @@ from utils import log_error
 
 # ================= ENV CHECK =================
 def is_cloud():
-    return "streamlit.app" in str(st.get_option("browser.serverAddress"))
+    return os.getenv("STREAMLIT_SHARING_MODE") is not None
 
 # ================= PASSWORD =================
 def hash_pw(password):

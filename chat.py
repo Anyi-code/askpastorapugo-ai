@@ -152,32 +152,40 @@ def chat_page():
                 import pandas as pd
                 import os
                 
-                file_path = "qa_dataset.csv"
+                file_path = "pending_qa.csv"
+
+                columns = [
+                    "user",
+                    "question",
+                    "answer",
+                    "scripture",
+                    "category",
+                    "question_norm",
+                    "embedding"
+                ]
                 
                 if not os.path.exists(file_path):
-                    df = pd.DataFrame(columns=["question", "answer"])
+                    df = pd.DataFrame(columns=columns)
                 else:
                     try:
                         df = pd.read_csv(file_path)
                     except:
-                        df = pd.DataFrame(columns=["question", "answer"])
+                        df = pd.DataFrame(columns=columns)
                 
                 new_row = pd.DataFrame([{
+                    "user": st.session_state.get("username", "User"),
                     "question": user_input,
-                    "answer": response
+                    "answer": response,
+                    "scripture": "",
+                    "category": "",
+                    "question_norm": user_input.lower(),
+                    "embedding": ""
                 }])
                 
                 df = pd.concat([df, new_row], ignore_index=True)
                 df.to_csv(file_path, index=False)
-
-                response = enforce_format(
-                    response,
-                    st.session_state.get("username", "User")
-                )
-
-                clean_response = response.replace("\n", "\n\n")
-
-                st.markdown(clean_response)
+                
+                print("Saved to pending_qa.csv ✅")
 
                 # ================= VOICE =================
                 audio_file = speak(response)

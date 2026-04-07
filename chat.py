@@ -138,21 +138,28 @@ def chat_page():
     # ================= PROCESS MESSAGE =================
     if st.session_state.pending_input:
 
-        user_input = st.session_state.pending_input
+        user_input = st.session_state.pending_input  # ✅ ALWAYS DEFINED
 
         st.session_state.chat.append(("user", user_input))
 
         with st.chat_message("user"):
             st.markdown(user_input)
 
+        response = ""  # ✅ PREVENT NameError
+
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
 
-                response = stream_response(
-                    [{"role": "user", "content": user_input}],
-                    st.session_state.get("username", "User"),
-                    st
-                )
+                try:
+                    response = stream_response(
+                        [{"role": "user", "content": user_input}],
+                        st.session_state.get("username", "User"),
+                        st
+                    )
+                except Exception as e:
+                    st.error("AI response failed")
+                    print("AI ERROR:", e)
+                    response = "Sorry, something went wrong."
 
                 response = enforce_format(
                     response,
@@ -164,9 +171,12 @@ def chat_page():
                 st.markdown(clean_response)
 
                 # ================= VOICE =================
-                audio_file = speak(response)
-                if audio_file:
-                    st.audio(audio_file, format="audio/mp3")
+                try:
+                    audio_file = speak(response)
+                    if audio_file:
+                        st.audio(audio_file, format="audio/mp3")
+                except Exception as e:
+                    print("VOICE ERROR:", e)
 
         st.session_state.chat.append(("assistant", clean_response))
 
@@ -187,19 +197,20 @@ def chat_page():
         ]
 
         try:
-            # LOAD OR CREATE FILE
+            # LOAD FILE SAFELY
             if not os.path.exists(file_path):
                 df = pd.DataFrame(columns=columns)
             else:
                 df = pd.read_csv(file_path, dtype=str, engine="python").fillna("")
 
-            # OPTIONAL: GENERATE EMBEDDING (SAFE)
+            # SAFE EMBEDDING (NO MORE NameError)
             try:
                 embedding = get_embedding(user_input)
-            except:
+            except Exception as e:
+                print("EMBEDDING ERROR:", e)
                 embedding = ""
 
-            # CREATE NEW ROW
+            # CREATE ROW
             new_row = pd.DataFrame([{
                 "user": st.session_state.get("username", "User"),
                 "question": user_input,
@@ -217,8 +228,6 @@ def chat_page():
             df.to_csv(file_path, index=False)
 
             print("✅ SAVED TO pending_qa.csv")
-
-            # OPTIONAL UI CONFIRMATION
             st.success("Saved for admin approval")
 
             # CLEAR INPUT
@@ -226,4 +235,4 @@ def chat_page():
 
         except Exception as e:
             print("❌ SAVE ERROR:", e)
-            st.error("Failed to save question. Check logs.")
+            st.error("Failed to save question.")

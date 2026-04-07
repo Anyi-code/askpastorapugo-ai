@@ -66,12 +66,14 @@ def admin_page():
     if users and len(users) > 0:
         df_users = pd.DataFrame(users)
 
+        # 🔥 ENSURE TIME COLUMNS
         if "time_allocated" not in df_users.columns:
             df_users["time_allocated"] = None
 
         if "time_used" not in df_users.columns:
             df_users["time_used"] = 0
 
+        # 🔥 CALCULATE REMAINING
         df_users["time_remaining"] = df_users.apply(
             lambda row: (
                 round(row["time_allocated"] - row["time_used"], 2)
@@ -95,7 +97,7 @@ def admin_page():
 
         display_cols = [c for c in display_cols if c in df_users.columns]
 
-        st.dataframe(df_users[display_cols], use_container_width=True)
+        st.dataframe(df_users[display_cols], width="stretch")
 
     else:
         st.warning("⚠️ No users found. Register users first.")
@@ -137,7 +139,7 @@ def admin_page():
 
     if invites and len(invites) > 0:
         df_inv = pd.DataFrame(invites)
-        st.dataframe(df_inv, use_container_width=True)
+        st.dataframe(df_inv, width="stretch")
     else:
         st.info("No invite codes")
 
@@ -150,82 +152,11 @@ def admin_page():
 
         if logs:
             df_logs = pd.DataFrame(logs[::-1])
-            st.dataframe(df_logs, use_container_width=True)
+            st.dataframe(df_logs, width="stretch")
         else:
             st.success("No errors 🎉")
     else:
         st.success("No logs yet 🎉")
-
-    # ================= PENDING Q&A =================
-st.subheader("⏳ Pending Q&A (Approve / Reject)")
-
-pending_file = "pending_qa.csv"
-main_file = "qa_dataset.csv"
-
-if os.path.exists(pending_file):
-
-    try:
-        # 🔥 SAFE CSV LOAD (handles embedding properly)
-        df_pending = pd.read_csv(pending_file, engine="python")
-
-        # 🔥 CLEAN COLUMN NAMES (removes hidden spaces)
-        df_pending.columns = df_pending.columns.str.strip()
-
-        # 🔥 DEBUG (you can remove later)
-        st.write("Columns:", df_pending.columns.tolist())
-        st.write("Rows found:", len(df_pending))
-
-    except Exception as e:
-        st.error(f"Error loading CSV: {e}")
-        df_pending = pd.DataFrame()
-
-    if not df_pending.empty:
-
-        for i, row in df_pending.iterrows():
-
-            st.markdown(f"**👤 User:** {row.get('user','')}")
-            st.markdown(f"**Q:** {row.get('question','')}")
-            st.markdown(f"**A:** {row.get('answer','')}")
-            st.markdown(f"**📖 Scripture:** {row.get('scripture','')}")
-            st.markdown(f"**📂 Category:** {row.get('category','')}")
-
-            col1, col2 = st.columns(2)
-
-            # ✅ APPROVE
-            with col1:
-                if st.button(f"✅ Approve {i}", key=f"approve_{i}"):
-
-                    if os.path.exists(main_file):
-                        df_main = pd.read_csv(main_file, engine="python")
-                    else:
-                        df_main = pd.DataFrame(columns=df_pending.columns)
-
-                    df_main = pd.concat([df_main, pd.DataFrame([row])], ignore_index=True)
-                    df_main.to_csv(main_file, index=False)
-
-                    df_pending = df_pending.drop(i)
-                    df_pending.to_csv(pending_file, index=False)
-
-                    st.success("Approved and moved to dataset")
-                    st.rerun()
-
-            # ❌ REJECT
-            with col2:
-                if st.button(f"❌ Reject {i}", key=f"reject_{i}"):
-
-                    df_pending = df_pending.drop(i)
-                    df_pending.to_csv(pending_file, index=False)
-
-                    st.warning("Rejected and removed")
-                    st.rerun()
-
-            st.divider()
-
-    else:
-        st.warning("⚠️ File loaded but empty")
-
-else:
-    st.error("❌ pending_qa.csv NOT FOUND")
 
     # ================= SYSTEM HEALTH =================
     st.subheader("🧠 System Health Dashboard")

@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 import pandas as pd
 import os, json
 import random, string
@@ -80,7 +80,7 @@ def admin_page():
             axis=1
         )
 
-        st.dataframe(df_users, use_container_width=True)
+        st.dataframe(df_users, width="stretch")
 
     else:
         st.warning("⚠️ No users found.")
@@ -117,7 +117,7 @@ def admin_page():
         st.rerun()
 
     if invites:
-        st.dataframe(pd.DataFrame(invites), use_container_width=True)
+        st.dataframe(pd.DataFrame(invites), width="stretch")
 
     # ================= ERROR LOGS =================
     st.subheader("🚨 Error Logs")
@@ -127,7 +127,7 @@ def admin_page():
             logs = json.load(f)
 
         if logs:
-            st.dataframe(pd.DataFrame(logs[::-1]), use_container_width=True)
+            st.dataframe(pd.DataFrame(logs[::-1]), width="stretch")
         else:
             st.success("No errors")
 

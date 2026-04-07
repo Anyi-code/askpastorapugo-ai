@@ -1,5 +1,7 @@
 import streamlit as st
 import json
+import os
+import pandas as pd
 
 from utils import (
     stream_response,
@@ -10,8 +12,9 @@ from utils import (
     enforce_format
 )
 
-# 🔥 NEW IMPORT
+# 🔥 TIME CONTROL
 from access_control import enforce_time_access, update_time_used
+
 
 # ================= CHAT PAGE =================
 def chat_page():
@@ -24,6 +27,9 @@ def chat_page():
     # ================= SESSION INIT =================
     if "chat" not in st.session_state:
         st.session_state.chat = []
+
+    if "pending_input" not in st.session_state:
+        st.session_state.pending_input = None
 
     # ================= TOP BAR =================
     col1, col2, col3, col4 = st.columns(4)
@@ -115,24 +121,24 @@ def chat_page():
 
     audio = st.audio_input("🎤 Tap and speak")
 
-    user_input = None
-
     if audio is not None:
         with st.spinner("Listening..."):
             text = transcribe_audio(audio)
 
         if text:
             st.success(f"You said: {text}")
-            user_input = text
+            st.session_state.pending_input = text
 
     # ================= TEXT INPUT =================
     typed_input = st.chat_input("Ask Pastor Apugo AI...")
 
     if typed_input:
-        user_input = typed_input
+        st.session_state.pending_input = typed_input
 
     # ================= PROCESS MESSAGE =================
-    if user_input:
+    if st.session_state.pending_input:
+
+        user_input = st.session_state.pending_input
 
         st.session_state.chat.append(("user", user_input))
 
@@ -148,44 +154,14 @@ def chat_page():
                     st
                 )
 
-                # ✅ ADD THIS BLOCK RIGHT HERE
-                import pandas as pd
-                import os
-                
-                file_path = "pending_qa.csv"
+                response = enforce_format(
+                    response,
+                    st.session_state.get("username", "User")
+                )
 
-                columns = [
-                    "user",
-                    "question",
-                    "answer",
-                    "scripture",
-                    "category",
-                    "question_norm",
-                    "embedding"
-                ]
-                
-                if not os.path.exists(file_path):
-                    df = pd.DataFrame(columns=columns)
-                else:
-                    try:
-                        df = pd.read_csv(file_path)
-                    except:
-                        df = pd.DataFrame(columns=columns)
-                
-                new_row = pd.DataFrame([{
-                    "user": st.session_state.get("username", "User"),
-                    "question": user_input,
-                    "answer": response,
-                    "scripture": "",
-                    "category": "",
-                    "question_norm": user_input.lower(),
-                    "embedding": ""
-                }])
-                
-                df = pd.concat([df, new_row], ignore_index=True)
-                df.to_csv(file_path, index=False)
-                
-                print("Saved to pending_qa.csv ✅")
+                clean_response = response.replace("\n", "\n\n")
+
+                st.markdown(clean_response)
 
                 # ================= VOICE =================
                 audio_file = speak(response)
@@ -196,3 +172,58 @@ def chat_page():
 
         # 🔥 UPDATE TIME AFTER RESPONSE
         update_time_used(st.session_state.get("username"))
+
+        # ================= SAVE TO pending_qa.csv =================
+        file_path = "pending_qa.csv"
+
+        columns = [
+            "user",
+            "question",
+            "answer",
+            "scripture",
+            "category",
+            "question_norm",
+            "embedding"
+        ]
+
+        try:
+            # LOAD OR CREATE FILE
+            if not os.path.exists(file_path):
+                df = pd.DataFrame(columns=columns)
+            else:
+                df = pd.read_csv(file_path, dtype=str, engine="python").fillna("")
+
+            # OPTIONAL: GENERATE EMBEDDING (SAFE)
+            try:
+                embedding = get_embedding(user_input)
+            except:
+                embedding = ""
+
+            # CREATE NEW ROW
+            new_row = pd.DataFrame([{
+                "user": st.session_state.get("username", "User"),
+                "question": user_input,
+                "answer": clean_response,
+                "scripture": "",
+                "category": "",
+                "question_norm": user_input.lower(),
+                "embedding": embedding
+            }])
+
+            # APPEND
+            df = pd.concat([df, new_row], ignore_index=True)
+
+            # SAVE
+            df.to_csv(file_path, index=False)
+
+            print("✅ SAVED TO pending_qa.csv")
+
+            # OPTIONAL UI CONFIRMATION
+            st.success("Saved for admin approval")
+
+            # CLEAR INPUT
+            st.session_state.pending_input = None
+
+        except Exception as e:
+            print("❌ SAVE ERROR:", e)
+            st.error("Failed to save question. Check logs.")

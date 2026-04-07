@@ -18,7 +18,7 @@ def load_data():
         with open("users.json", "r") as f:
             data = json.load(f)
 
-    # 🔥 AUTO CREATE ADMIN IF EMPTY
+    # AUTO CREATE ADMIN
     if not data.get("users"):
         from auth import hash_pw
 
@@ -80,37 +80,23 @@ def admin_page():
             axis=1
         )
 
-        display_cols = [
-            "username",
-            "role",
-            "time_allocated",
-            "time_used",
-            "time_remaining",
-            "invite_code_used",
-            "invited_by",
-            "status",
-            "last_login"
-        ]
-
-        display_cols = [c for c in display_cols if c in df_users.columns]
-
-        st.dataframe(df_users[display_cols], use_container_width=True)
+        st.dataframe(df_users, use_container_width=True)
 
     else:
-        st.warning("⚠️ No users found. Register users first.")
+        st.warning("⚠️ No users found.")
 
     # ================= TIME CONTROL =================
-    st.subheader("⏱ Assign Time to User (Minutes)")
+    st.subheader("⏱ Assign Time")
 
     if users:
-        usernames = [u.get("username", "unknown") for u in users]
+        usernames = [u.get("username") for u in users]
 
         selected_user = st.selectbox("Select User", usernames)
-        minutes = st.number_input("Minutes", min_value=1, step=1)
+        minutes = st.number_input("Minutes", min_value=1)
 
         if st.button("Assign Time"):
             assign_time_to_user(selected_user, minutes)
-            st.success(f"{minutes} minutes assigned to {selected_user}")
+            st.success(f"{minutes} mins assigned")
             st.rerun()
 
     # ================= INVITES =================
@@ -127,14 +113,11 @@ def admin_page():
         })
 
         save_data(data)
-        st.success(f"Code generated: {code}")
+        st.success(f"Code: {code}")
         st.rerun()
 
     if invites:
-        df_inv = pd.DataFrame(invites)
-        st.dataframe(df_inv, use_container_width=True)
-    else:
-        st.info("No invite codes")
+        st.dataframe(pd.DataFrame(invites), use_container_width=True)
 
     # ================= ERROR LOGS =================
     st.subheader("🚨 Error Logs")
@@ -144,12 +127,9 @@ def admin_page():
             logs = json.load(f)
 
         if logs:
-            df_logs = pd.DataFrame(logs[::-1])
-            st.dataframe(df_logs, use_container_width=True)
+            st.dataframe(pd.DataFrame(logs[::-1]), use_container_width=True)
         else:
-            st.success("No errors 🎉")
-    else:
-        st.success("No logs yet 🎉")
+            st.success("No errors")
 
     # ================= PENDING Q&A =================
     st.subheader("⏳ Pending Q&A (Approve / Reject)")
@@ -159,31 +139,29 @@ def admin_page():
 
     if os.path.exists(pending_file):
 
-        try:
-            df_pending = pd.read_csv(pending_file, engine="python")
-            df_pending.columns = df_pending.columns.str.strip()
+        df_pending = pd.read_csv(pending_file, engine="python")
+        df_pending.columns = df_pending.columns.str.strip()
 
-            st.write("Rows found:", len(df_pending))  # debug
+        st.write(f"Rows found: {len(df_pending)}")
 
-        except Exception as e:
-            st.error(f"Error loading CSV: {e}")
-            df_pending = pd.DataFrame()
+        if len(df_pending) > 0:
 
-        if not df_pending.empty:
+            for i in range(len(df_pending)):
 
-            for i, row in df_pending.iterrows():
+                row = df_pending.iloc[i]
 
-                st.markdown(f"**👤 User:** {row.get('user','')}")
-                st.markdown(f"**Q:** {row.get('question','')}")
-                st.markdown(f"**A:** {row.get('answer','')}")
-                st.markdown(f"**📖 Scripture:** {row.get('scripture','')}")
-                st.markdown(f"**📂 Category:** {row.get('category','')}")
+                st.markdown(f"### 🔹 Entry {i+1}")
+                st.markdown(f"**👤 User:** {row['user']}")
+                st.markdown(f"**Q:** {row['question']}")
+                st.markdown(f"**A:** {row['answer']}")
+                st.markdown(f"**📖 Scripture:** {row['scripture']}")
+                st.markdown(f"**📂 Category:** {row['category']}")
 
                 col1, col2 = st.columns(2)
 
                 # APPROVE
                 with col1:
-                    if st.button(f"✅ Approve {i}", key=f"approve_{i}"):
+                    if st.button(f"Approve {i}", key=f"approve_{i}"):
 
                         if os.path.exists(main_file):
                             df_main = pd.read_csv(main_file, engine="python")
@@ -193,30 +171,30 @@ def admin_page():
                         df_main = pd.concat([df_main, pd.DataFrame([row])], ignore_index=True)
                         df_main.to_csv(main_file, index=False)
 
-                        df_pending = df_pending.drop(i)
+                        df_pending = df_pending.drop(df_pending.index[i])
                         df_pending.to_csv(pending_file, index=False)
 
-                        st.success("Approved and moved to dataset")
+                        st.success("Approved")
                         st.rerun()
 
                 # REJECT
                 with col2:
-                    if st.button(f"❌ Reject {i}", key=f"reject_{i}"):
+                    if st.button(f"Reject {i}", key=f"reject_{i}"):
 
-                        df_pending = df_pending.drop(i)
+                        df_pending = df_pending.drop(df_pending.index[i])
                         df_pending.to_csv(pending_file, index=False)
 
-                        st.warning("Rejected and removed")
+                        st.warning("Rejected")
                         st.rerun()
 
                 st.divider()
 
         else:
-            st.warning("⚠️ File loaded but empty")
+            st.warning("No pending Q&A")
 
     else:
-        st.error("❌ pending_qa.csv NOT FOUND")
+        st.error("pending_qa.csv not found")
 
-    # ================= SYSTEM HEALTH =================
+    # ================= HEALTH DASHBOARD =================
     st.subheader("🧠 System Health Dashboard")
     run_health_dashboard()

@@ -20,7 +20,6 @@ def load_data():
 
     # 🔥 AUTO CREATE ADMIN IF EMPTY
     if not data.get("users"):
-
         from auth import hash_pw
 
         admin_user = {
@@ -63,7 +62,7 @@ def admin_page():
     # ================= USERS =================
     st.subheader("👥 Users")
 
-    if users and len(users) > 0:
+    if users:
         df_users = pd.DataFrame(users)
 
         if "time_allocated" not in df_users.columns:
@@ -103,8 +102,7 @@ def admin_page():
     # ================= TIME CONTROL =================
     st.subheader("⏱ Assign Time to User (Minutes)")
 
-    if users and len(users) > 0:
-
+    if users:
         usernames = [u.get("username", "unknown") for u in users]
 
         selected_user = st.selectbox("Select User", usernames)
@@ -114,9 +112,6 @@ def admin_page():
             assign_time_to_user(selected_user, minutes)
             st.success(f"{minutes} minutes assigned to {selected_user}")
             st.rerun()
-
-    else:
-        st.info("ℹ️ No users available for time assignment.")
 
     # ================= INVITES =================
     st.subheader("🎟️ Invite Codes")
@@ -135,7 +130,7 @@ def admin_page():
         st.success(f"Code generated: {code}")
         st.rerun()
 
-    if invites and len(invites) > 0:
+    if invites:
         df_inv = pd.DataFrame(invites)
         st.dataframe(df_inv, use_container_width=True)
     else:
@@ -157,75 +152,70 @@ def admin_page():
         st.success("No logs yet 🎉")
 
     # ================= PENDING Q&A =================
-st.subheader("⏳ Pending Q&A (Approve / Reject)")
+    st.subheader("⏳ Pending Q&A (Approve / Reject)")
 
-pending_file = "pending_qa.csv"
-main_file = "qa_dataset.csv"
+    pending_file = "pending_qa.csv"
+    main_file = "qa_dataset.csv"
 
-if os.path.exists(pending_file):
+    if os.path.exists(pending_file):
 
-    try:
-        # 🔥 SAFE CSV LOAD (handles embedding properly)
-        df_pending = pd.read_csv(pending_file, engine="python")
+        try:
+            df_pending = pd.read_csv(pending_file, engine="python")
+            df_pending.columns = df_pending.columns.str.strip()
 
-        # 🔥 CLEAN COLUMN NAMES (removes hidden spaces)
-        df_pending.columns = df_pending.columns.str.strip()
+            st.write("Rows found:", len(df_pending))  # debug
 
-        # 🔥 DEBUG (you can remove later)
-        st.write("Columns:", df_pending.columns.tolist())
-        st.write("Rows found:", len(df_pending))
+        except Exception as e:
+            st.error(f"Error loading CSV: {e}")
+            df_pending = pd.DataFrame()
 
-    except Exception as e:
-        st.error(f"Error loading CSV: {e}")
-        df_pending = pd.DataFrame()
+        if not df_pending.empty:
 
-    if not df_pending.empty:
+            for i, row in df_pending.iterrows():
 
-        for i, row in df_pending.iterrows():
+                st.markdown(f"**👤 User:** {row.get('user','')}")
+                st.markdown(f"**Q:** {row.get('question','')}")
+                st.markdown(f"**A:** {row.get('answer','')}")
+                st.markdown(f"**📖 Scripture:** {row.get('scripture','')}")
+                st.markdown(f"**📂 Category:** {row.get('category','')}")
 
-            st.markdown(f"**👤 User:** {row.get('user','')}")
-            st.markdown(f"**Q:** {row.get('question','')}")
-            st.markdown(f"**A:** {row.get('answer','')}")
-            st.markdown(f"**📖 Scripture:** {row.get('scripture','')}")
-            st.markdown(f"**📂 Category:** {row.get('category','')}")
+                col1, col2 = st.columns(2)
 
-            col1, col2 = st.columns(2)
+                # APPROVE
+                with col1:
+                    if st.button(f"✅ Approve {i}", key=f"approve_{i}"):
 
-            # ✅ APPROVE
-            with col1:
-                if st.button(f"✅ Approve {i}", key=f"approve_{i}"):
+                        if os.path.exists(main_file):
+                            df_main = pd.read_csv(main_file, engine="python")
+                        else:
+                            df_main = pd.DataFrame(columns=df_pending.columns)
 
-                    if os.path.exists(main_file):
-                        df_main = pd.read_csv(main_file, engine="python")
-                    else:
-                        df_main = pd.DataFrame(columns=df_pending.columns)
+                        df_main = pd.concat([df_main, pd.DataFrame([row])], ignore_index=True)
+                        df_main.to_csv(main_file, index=False)
 
-                    df_main = pd.concat([df_main, pd.DataFrame([row])], ignore_index=True)
-                    df_main.to_csv(main_file, index=False)
+                        df_pending = df_pending.drop(i)
+                        df_pending.to_csv(pending_file, index=False)
 
-                    df_pending = df_pending.drop(i)
-                    df_pending.to_csv(pending_file, index=False)
+                        st.success("Approved and moved to dataset")
+                        st.rerun()
 
-                    st.success("Approved and moved to dataset")
-                    st.rerun()
+                # REJECT
+                with col2:
+                    if st.button(f"❌ Reject {i}", key=f"reject_{i}"):
 
-            # ❌ REJECT
-            with col2:
-                if st.button(f"❌ Reject {i}", key=f"reject_{i}"):
+                        df_pending = df_pending.drop(i)
+                        df_pending.to_csv(pending_file, index=False)
 
-                    df_pending = df_pending.drop(i)
-                    df_pending.to_csv(pending_file, index=False)
+                        st.warning("Rejected and removed")
+                        st.rerun()
 
-                    st.warning("Rejected and removed")
-                    st.rerun()
+                st.divider()
 
-            st.divider()
+        else:
+            st.warning("⚠️ File loaded but empty")
 
     else:
-        st.warning("⚠️ File loaded but empty")
-
-else:
-    st.error("❌ pending_qa.csv NOT FOUND")
+        st.error("❌ pending_qa.csv NOT FOUND")
 
     # ================= SYSTEM HEALTH =================
     st.subheader("🧠 System Health Dashboard")

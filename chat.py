@@ -148,6 +148,28 @@ def chat_page():
                     st
                 )
 
+                # ✅ ADD THIS BLOCK RIGHT HERE
+                import pandas as pd
+                import os
+                
+                file_path = "qa_dataset.csv"
+                
+                if not os.path.exists(file_path):
+                    df = pd.DataFrame(columns=["question", "answer"])
+                else:
+                    try:
+                        df = pd.read_csv(file_path)
+                    except:
+                        df = pd.DataFrame(columns=["question", "answer"])
+                
+                new_row = pd.DataFrame([{
+                    "question": user_input,
+                    "answer": response
+                }])
+                
+                df = pd.concat([df, new_row], ignore_index=True)
+                df.to_csv(file_path, index=False)
+
                 response = enforce_format(
                     response,
                     st.session_state.get("username", "User")

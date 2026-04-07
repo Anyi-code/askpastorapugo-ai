@@ -17,3 +17,5 @@ user.json
 openai API key.txt
 error_logs.json
 backups/
+pending_qa.csv
+qa_dataset.csv

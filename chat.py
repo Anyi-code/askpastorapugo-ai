@@ -107,7 +107,6 @@ def chat_page():
 
                 st.session_state.chat.append(("assistant", clean_sermon))
 
-                # 🔥 UPDATE TIME
                 update_time_used(st.session_state.get("username"))
 
     with colB:
@@ -138,14 +137,16 @@ def chat_page():
     # ================= PROCESS MESSAGE =================
     if st.session_state.pending_input:
 
-        user_input = st.session_state.pending_input  # ✅ ALWAYS DEFINED
+        user_input = st.session_state.pending_input
 
         st.session_state.chat.append(("user", user_input))
 
         with st.chat_message("user"):
             st.markdown(user_input)
 
-        response = ""  # ✅ PREVENT NameError
+        # ✅ PREVENT ALL NameErrors
+        response = ""
+        clean_response = ""
 
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
@@ -157,16 +158,20 @@ def chat_page():
                         st
                     )
                 except Exception as e:
-                    st.error("AI response failed")
                     print("AI ERROR:", e)
+                    st.error("AI response failed")
                     response = "Sorry, something went wrong."
 
-                response = enforce_format(
-                    response,
-                    st.session_state.get("username", "User")
-                )
+                try:
+                    response = enforce_format(
+                        response,
+                        st.session_state.get("username", "User")
+                    )
+                except Exception as e:
+                    print("FORMAT ERROR:", e)
 
-                clean_response = response.replace("\n", "\n\n")
+                # ✅ ALWAYS DEFINED
+                clean_response = str(response).replace("\n", "\n\n")
 
                 st.markdown(clean_response)
 
@@ -180,7 +185,6 @@ def chat_page():
 
         st.session_state.chat.append(("assistant", clean_response))
 
-        # 🔥 UPDATE TIME AFTER RESPONSE
         update_time_used(st.session_state.get("username"))
 
         # ================= SAVE TO pending_qa.csv =================
@@ -197,20 +201,18 @@ def chat_page():
         ]
 
         try:
-            # LOAD FILE SAFELY
             if not os.path.exists(file_path):
                 df = pd.DataFrame(columns=columns)
             else:
                 df = pd.read_csv(file_path, dtype=str, engine="python").fillna("")
 
-            # SAFE EMBEDDING (NO MORE NameError)
+            # SAFE EMBEDDING
             try:
                 embedding = get_embedding(user_input)
             except Exception as e:
                 print("EMBEDDING ERROR:", e)
                 embedding = ""
 
-            # CREATE ROW
             new_row = pd.DataFrame([{
                 "user": st.session_state.get("username", "User"),
                 "question": user_input,
@@ -221,10 +223,7 @@ def chat_page():
                 "embedding": embedding
             }])
 
-            # APPEND
             df = pd.concat([df, new_row], ignore_index=True)
-
-            # SAVE
             df.to_csv(file_path, index=False)
 
             print("✅ SAVED TO pending_qa.csv")

@@ -122,17 +122,17 @@ def chat_page():
     if chat_input:
         typed_input = chat_input
 
-    # ================= BUTTONS UNDER INPUT =================
+    # ================= BUTTONS (ONLY HERE — CORRECT POSITION) =================
     st.markdown("<br>", unsafe_allow_html=True)
 
     colA, colB = st.columns(2)
 
     with colA:
-        if st.button("🔄 Refresh", key="refresh_under_input"):
+        if st.button("🔄 Refresh", key="refresh_bottom"):
             st.rerun()
 
     with colB:
-        if st.button("🧹 Clear", key="clear_under_input"):
+        if st.button("🧹 Clear", key="clear_bottom"):
             st.session_state.chat = []
             st.session_state.last_response = None
             st.session_state.last_sermon = None

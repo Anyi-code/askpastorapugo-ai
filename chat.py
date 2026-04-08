@@ -34,11 +34,11 @@ def chat_page():
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        if st.button("🔄 Refresh"):
+        if st.button("🔄 Refresh (Top)"):
             st.rerun()
 
     with col2:
-        if st.button("🧹 Clear"):
+        if st.button("🧹 Clear (Top)"):
             st.session_state.chat = []
             st.session_state.last_response = None
             st.session_state.last_sermon = None
@@ -64,13 +64,10 @@ def chat_page():
 
     colS1, colS2, colS3 = st.columns(3)
 
-    # GENERATE
     with colS1:
         if st.button("Generate Sermon") and sermon_topic:
-
             sermon = generate_sermon(sermon_topic, st.session_state.get("username"))
             sermon = enforce_format(sermon, st.session_state.get("username"))
-
             clean_sermon = sermon.replace("\n", "\n\n")
 
             with st.chat_message("assistant"):
@@ -81,10 +78,8 @@ def chat_page():
 
             update_time_used(st.session_state.get("username"))
 
-    # SUMMARIZE
     with colS2:
         if st.button("Summarize Sermon") and st.session_state.last_sermon:
-
             prompt = f"Summarize this sermon in 100 words:\n\n{st.session_state.last_sermon}"
 
             summary = stream_response(
@@ -96,7 +91,6 @@ def chat_page():
             st.markdown("### 📌 Sermon Summary")
             st.markdown(summary)
 
-    # CLEAR SERMON
     with colS3:
         if st.button("Clear Sermon"):
             st.session_state.last_sermon = None
@@ -122,17 +116,17 @@ def chat_page():
     if chat_input:
         typed_input = chat_input
 
-    # ================= BUTTONS (ONLY HERE — CORRECT POSITION) =================
+    # ================= ONLY BUTTON BLOCK (FINAL POSITION) =================
     st.markdown("<br>", unsafe_allow_html=True)
 
     colA, colB = st.columns(2)
 
     with colA:
-        if st.button("🔄 Refresh", key="refresh_bottom"):
+        if st.button("🔄 Refresh", key="only_refresh"):
             st.rerun()
 
     with colB:
-        if st.button("🧹 Clear", key="clear_bottom"):
+        if st.button("🧹 Clear", key="only_clear"):
             st.session_state.chat = []
             st.session_state.last_response = None
             st.session_state.last_sermon = None

@@ -52,14 +52,6 @@ def chat_page():
             st.session_state.clear()
             st.rerun()
 
-    # ================= CLEAR CHAT BUTTON =================
-    if st.button("Clear Chat"):
-        st.session_state.chat = []
-        st.session_state.last_response = None
-        st.session_state.last_sermon = None
-        st.success("Chat cleared successfully")
-        st.rerun()
-
     # ================= CHAT HISTORY =================
     for role, message in st.session_state.chat:
         with st.chat_message(role):
@@ -70,51 +62,46 @@ def chat_page():
 
     sermon_topic = st.text_input("Enter sermon topic")
 
-    if st.button("Generate Sermon") and sermon_topic:
+    colS1, colS2, colS3 = st.columns(3)
 
-        sermon = generate_sermon(sermon_topic, st.session_state.get("username"))
-        sermon = enforce_format(sermon, st.session_state.get("username"))
+    # GENERATE
+    with colS1:
+        if st.button("Generate Sermon") and sermon_topic:
 
-        clean_sermon = sermon.replace("\n", "\n\n")
+            sermon = generate_sermon(sermon_topic, st.session_state.get("username"))
+            sermon = enforce_format(sermon, st.session_state.get("username"))
 
-        with st.chat_message("assistant"):
-            st.markdown(clean_sermon)
+            clean_sermon = sermon.replace("\n", "\n\n")
 
-        st.session_state.chat.append(("assistant", clean_sermon))
-        st.session_state.last_sermon = clean_sermon
+            with st.chat_message("assistant"):
+                st.markdown(clean_sermon)
 
-        update_time_used(st.session_state.get("username"))
+            st.session_state.chat.append(("assistant", clean_sermon))
+            st.session_state.last_sermon = clean_sermon
 
-    # ================= SERMON SUMMARY =================
-    if st.session_state.last_sermon:
+            update_time_used(st.session_state.get("username"))
 
-        st.markdown("---")
-        st.subheader("📝 Sermon Summary")
+    # SUMMARIZE
+    with colS2:
+        if st.button("Summarize Sermon") and st.session_state.last_sermon:
 
-        colS1, colS2 = st.columns([2, 1])
+            prompt = f"Summarize this sermon in 100 words:\n\n{st.session_state.last_sermon}"
 
-        with colS1:
-            sermon_words = st.number_input(
-                "Word limit",
-                min_value=20,
-                max_value=500,
-                value=100,
-                key="sermon_summary_words"
+            summary = stream_response(
+                [{"role": "user", "content": prompt}],
+                st.session_state.get("username"),
+                st
             )
 
-        with colS2:
-            if st.button("Summarize Sermon"):
+            st.markdown("### 📌 Sermon Summary")
+            st.markdown(summary)
 
-                prompt = f"Summarize this sermon in {sermon_words} words:\n\n{st.session_state.last_sermon}"
-
-                summary = stream_response(
-                    [{"role": "user", "content": prompt}],
-                    st.session_state.get("username"),
-                    st
-                )
-
-                st.markdown("### 📌 Sermon Summary")
-                st.markdown(summary)
+    # CLEAR SERMON
+    with colS3:
+        if st.button("Clear Sermon"):
+            st.session_state.last_sermon = None
+            st.success("Sermon cleared")
+            st.rerun()
 
     st.divider()
 
@@ -219,33 +206,3 @@ def chat_page():
         df.to_csv("pending_qa.csv", index=False)
 
         st.success("Saved for admin approval")
-
-    # ================= CHAT SUMMARY =================
-    if st.session_state.last_response:
-
-        st.markdown("---")
-        st.subheader("📝 Summarize Message")
-
-        col1, col2 = st.columns([2, 1])
-
-        with col1:
-            word_limit = st.number_input(
-                "Word limit",
-                min_value=10,
-                max_value=300,
-                value=50
-            )
-
-        with col2:
-            if st.button("Summarize"):
-
-                prompt = f"Summarize this in {word_limit} words:\n\n{st.session_state.last_response}"
-
-                summary = stream_response(
-                    [{"role": "user", "content": prompt}],
-                    st.session_state.get("username"),
-                    st
-                )
-
-                st.markdown("### 📌 Summary")
-                st.markdown(summary)

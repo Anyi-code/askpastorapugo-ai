@@ -1,5 +1,4 @@
 import streamlit as st
-import json
 import os
 import pandas as pd
 
@@ -34,6 +33,7 @@ def chat_page():
     with col2:
         if st.button("🧹 Clear"):
             st.session_state.chat = []
+            st.session_state.pop("last_response", None)
             st.rerun()
 
     with col3:
@@ -55,24 +55,58 @@ def chat_page():
     sermon_topic = st.text_input("Enter sermon topic")
 
     if st.button("Generate Sermon") and sermon_topic:
+
         sermon = generate_sermon(sermon_topic, st.session_state.get("username"))
         sermon = enforce_format(sermon, st.session_state.get("username"))
 
         clean_sermon = sermon.replace("\n", "\n\n")
 
+        with st.chat_message("assistant"):
+            st.markdown(clean_sermon)
+
         st.session_state.chat.append(("assistant", clean_sermon))
-        st.markdown(clean_sermon)
+        st.session_state["last_response"] = clean_sermon
 
         update_time_used(st.session_state.get("username"))
 
     st.divider()
 
-    # ================= INPUT =================
+    # ================= VOICE =================
+    audio = st.audio_input("🎤 Tap and speak")
+
+    typed_input = None
+
+    if audio is not None:
+        text = transcribe_audio(audio)
+        if text:
+            st.success(f"You said: {text}")
+            typed_input = text
+
+    # ================= TEXT INPUT =================
     chat_input = st.chat_input("Ask Pastor Apugo AI...")
 
     if chat_input:
+        typed_input = chat_input
 
-        user_input = chat_input
+    # ================= LOWER BUTTONS =================
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    colA, colB = st.columns(2)
+
+    with colA:
+        if st.button("🔄 Refresh", key="refresh_bottom"):
+            st.rerun()
+
+    with colB:
+        if st.button("🧹 Clear", key="clear_bottom"):
+            st.session_state.chat = []
+            st.session_state.pop("last_response", None)
+            st.rerun()
+
+    # ================= PROCESS =================
+    if typed_input:
+
+        user_input = typed_input
 
         st.session_state.chat.append(("user", user_input))
 
@@ -80,7 +114,6 @@ def chat_page():
             st.markdown(user_input)
 
         response = ""
-        clean_response = ""
 
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
@@ -101,13 +134,15 @@ def chat_page():
                 st.markdown(clean_response)
 
                 try:
-                    audio = speak(response)
-                    if audio:
-                        st.audio(audio)
+                    audio_file = speak(response)
+                    if audio_file:
+                        st.audio(audio_file)
                 except:
                     pass
 
         st.session_state.chat.append(("assistant", clean_response))
+        st.session_state["last_response"] = clean_response
+
         update_time_used(st.session_state.get("username"))
 
         # ================= SAVE =================
@@ -139,20 +174,32 @@ def chat_page():
 
         st.success("Saved for admin approval")
 
-        # ================= SUMMARIZE =================
-        st.divider()
-        st.subheader("📝 Summarize")
+    # ================= SUMMARIZE =================
+    if "last_response" in st.session_state:
 
-        word_limit = st.number_input("Word count", 10, 300, 50)
+        st.markdown("---")
+        st.subheader("📝 Summarize Message")
 
-        if st.button("Summarize"):
-            prompt = f"Summarize in {word_limit} words:\n{clean_response}"
+        col1, col2 = st.columns([2, 1])
 
-            summary = stream_response(
-                [{"role": "user", "content": prompt}],
-                st.session_state.get("username"),
-                st
+        with col1:
+            word_limit = st.number_input(
+                "Word limit",
+                min_value=10,
+                max_value=300,
+                value=50
             )
 
-            st.markdown("### Summary")
-            st.markdown(summary)
+        with col2:
+            if st.button("✨ Summarize"):
+
+                prompt = f"Summarize this in {word_limit} words:\n\n{st.session_state['last_response']}"
+
+                summary = stream_response(
+                    [{"role": "user", "content": prompt}],
+                    st.session_state.get("username"),
+                    st
+                )
+
+                st.markdown("### 📌 Summary")
+                st.markdown(summary)

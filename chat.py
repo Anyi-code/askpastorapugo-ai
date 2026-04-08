@@ -19,6 +19,13 @@ def chat_page():
 
     enforce_time_access()
 
+    # ================= SESSION =================
+    if "chat" not in st.session_state:
+        st.session_state.chat = []
+
+    if "last_sermon" not in st.session_state:
+        st.session_state.last_sermon = None
+
     # ================= SIDEBAR =================
     with st.sidebar:
 
@@ -28,40 +35,6 @@ def chat_page():
         if st.button("🚪 Logout"):
             st.session_state.clear()
             st.rerun()
-
-        st.markdown("---")
-
-        st.markdown("### 🔐 Change Password")
-
-        new_pw = st.text_input("New Password", type="password")
-        confirm_pw = st.text_input("Confirm Password", type="password")
-
-        if st.button("Update Password"):
-            if new_pw and new_pw == confirm_pw:
-
-                import json
-                from auth import hash_pw
-
-                with open("users.json", "r") as f:
-                    data = json.load(f)
-
-                for user in data["users"]:
-                    if user["username"] == st.session_state.get("username"):
-                        user["password"] = hash_pw(new_pw)
-
-                with open("users.json", "w") as f:
-                    json.dump(data, f, indent=4)
-
-                st.success("Password updated")
-            else:
-                st.error("Passwords do not match")
-
-    # ================= SESSION =================
-    if "chat" not in st.session_state:
-        st.session_state.chat = []
-
-    if "last_sermon" not in st.session_state:
-        st.session_state.last_sermon = None
 
     # ================= CHAT HISTORY =================
     for role, message in st.session_state.chat:
@@ -90,7 +63,7 @@ def chat_page():
 
             update_time_used(st.session_state.get("username"))
 
-    # Word limit selector
+    # Word limit
     with col2:
         word_limit = st.number_input(
             "Summary length (words)",
@@ -114,6 +87,12 @@ def chat_page():
             st.markdown("### 📌 Sermon Summary")
             st.markdown(summary)
 
+    # ✅ CLEAR SERMON RESTORED
+    if st.button("Clear Sermon"):
+        st.session_state.last_sermon = None
+        st.success("Sermon cleared")
+        st.rerun()
+
     st.divider()
 
     # ================= VOICE =================
@@ -127,15 +106,13 @@ def chat_page():
             st.success(f"You said: {text}")
             typed_input = text
 
-    # ================= INPUT =================
-    chat_input = st.chat_input("Ask Pastor Apugo AI...")
+    # ================= INPUT (FIXED) =================
+    user_input = st.text_input("Ask Pastor Apugo AI...")
 
-    if chat_input:
-        typed_input = chat_input
+    if user_input:
+        typed_input = user_input
 
-    # ================= BUTTONS UNDER INPUT =================
-    st.markdown("<br>", unsafe_allow_html=True)
-
+    # ✅ BUTTONS NOW GUARANTEED UNDER INPUT
     colA, colB = st.columns(2)
 
     with colA:
@@ -151,14 +128,11 @@ def chat_page():
     # ================= PROCESS =================
     if typed_input:
 
-        user_input = typed_input
-
-        st.session_state.chat.append(("user", user_input))
-        st.markdown(f"**You:** {user_input}")
+        st.markdown(f"**You:** {typed_input}")
 
         try:
             response = stream_response(
-                [{"role": "user", "content": user_input}],
+                [{"role": "user", "content": typed_input}],
                 st.session_state.get("username"),
                 st
             )
@@ -182,7 +156,7 @@ def chat_page():
 
         update_time_used(st.session_state.get("username"))
 
-        # ================= SAVE =================
+        # SAVE
         try:
             df = pd.read_csv("pending_qa.csv").fillna("")
         except:
@@ -191,19 +165,14 @@ def chat_page():
                 "category","question_norm","embedding"
             ])
 
-        try:
-            embedding = get_embedding(user_input)
-        except:
-            embedding = ""
-
         new_row = pd.DataFrame([{
             "user": st.session_state.get("username"),
-            "question": user_input,
+            "question": typed_input,
             "answer": clean_response,
             "scripture": "",
             "category": "",
-            "question_norm": user_input.lower(),
-            "embedding": embedding
+            "question_norm": typed_input.lower(),
+            "embedding": ""
         }])
 
         df = pd.concat([df, new_row], ignore_index=True)

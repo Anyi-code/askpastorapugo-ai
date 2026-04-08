@@ -1,22 +1,69 @@
 import streamlit as st
 import pandas as pd
-import os
-import json
-import random
-import string
+import os, json, random, string
+
+from health_dashboard import run_health_dashboard
+from access_control import assign_time_to_user
 
 
+# ================= LOAD DATA =================
+def load_data():
+    if not os.path.exists("users.json"):
+        return {"users": [], "invites": []}
+    with open("users.json", "r") as f:
+        return json.load(f)
+
+
+def save_data(data):
+    with open("users.json", "w") as f:
+        json.dump(data, f, indent=4)
+
+
+# ================= ADMIN PAGE =================
 def admin_page():
 
     st.title("🛠️ Admin Dashboard")
 
-    # ================= USERS =================
-    if os.path.exists("users.json"):
-        with open("users.json") as f:
-            data = json.load(f)
+    data = load_data()
+    users = data.get("users", [])
+    invites = data.get("invites", [])
 
-        st.subheader("👥 Users")
-        st.dataframe(pd.DataFrame(data.get("users", [])))
+    # ================= USERS =================
+    st.subheader("👥 Users")
+
+    if users:
+        df_users = pd.DataFrame(users)
+
+        if "time_allocated" not in df_users.columns:
+            df_users["time_allocated"] = None
+        if "time_used" not in df_users.columns:
+            df_users["time_used"] = 0
+
+        df_users["time_remaining"] = df_users.apply(
+            lambda row: (
+                round(row["time_allocated"] - row["time_used"], 2)
+                if row["time_allocated"] is not None
+                else "Unlimited"
+            ),
+            axis=1
+        )
+
+        st.dataframe(df_users, width="stretch")
+    else:
+        st.warning("No users found")
+
+    # ================= TIME CONTROL =================
+    st.subheader("⏱ Assign Time")
+
+    if users:
+        usernames = [u["username"] for u in users]
+        selected_user = st.selectbox("Select User", usernames)
+        minutes = st.number_input("Minutes", min_value=1)
+
+        if st.button("Assign Time"):
+            assign_time_to_user(selected_user, minutes)
+            st.success(f"{minutes} mins assigned")
+            st.rerun()
 
     # ================= INVITES =================
     st.subheader("🎟️ Invite Codes")
@@ -24,81 +71,119 @@ def admin_page():
     if st.button("Generate Code"):
         code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
-        data["invites"].append({
+        invites.append({
             "code": code,
             "created_by": st.session_state.get("username"),
             "used_by": "",
             "status": "unused"
         })
 
-        with open("users.json", "w") as f:
-            json.dump(data, f, indent=4)
+        save_data(data)
+        st.success(f"Code: {code}")
+        st.rerun()
 
-        st.success(code)
+    if invites:
+        st.dataframe(pd.DataFrame(invites), width="stretch")
 
-    if data.get("invites"):
-        st.dataframe(pd.DataFrame(data["invites"]))
+    # ================= ERROR LOGS =================
+    st.subheader("🚨 Error Logs")
 
-    # ================= PENDING =================
-    st.subheader("⏳ Pending Q&A")
+    if os.path.exists("error_logs.json"):
+        with open("error_logs.json") as f:
+            logs = json.load(f)
 
-    if os.path.exists("pending_qa.csv"):
+        if logs:
+            st.dataframe(pd.DataFrame(logs[::-1]), width="stretch")
+        else:
+            st.success("No errors")
 
-        df = pd.read_csv("pending_qa.csv").fillna("")
+    # ================= PENDING Q&A =================
+    st.subheader("⏳ Pending Q&A (Edit → Approve / Reject)")
 
-        for i, row in df.iterrows():
+    pending_file = "pending_qa.csv"
+    main_file = "qa_dataset.csv"
 
-            st.markdown(f"### Entry {i+1}")
-            st.write(row["question"])
+    if os.path.exists(pending_file):
 
-            answer = st.text_area("Answer", row["answer"], key=f"a{i}")
-            scripture = st.text_input("Scripture", row["scripture"], key=f"s{i}")
-            category = st.text_input("Category", row["category"], key=f"c{i}")
+        df_pending = pd.read_csv(pending_file).fillna("")
+        st.write(f"Rows found: {len(df_pending)}")
 
-            col1, col2 = st.columns(2)
+        if len(df_pending) > 0:
 
-            # APPROVE
-            with col1:
-                if st.button("Approve", key=f"ap{i}"):
+            for i in range(len(df_pending)):
 
-                    try:
-                        main = pd.read_csv("qa_dataset.csv")
-                    except:
-                        main = pd.DataFrame(columns=df.columns)
+                row = df_pending.iloc[i]
 
-                    new = pd.DataFrame([{
-                        "user": row["user"],
-                        "question": row["question"],
-                        "answer": answer,
-                        "scripture": scripture,
-                        "category": category,
-                        "question_norm": row["question"].lower(),
-                        "embedding": row.get("embedding", "")
-                    }])
+                st.markdown(f"### Entry {i+1}")
+                st.markdown(f"👤 {row['user']}")
+                st.markdown(f"**Q:** {row['question']}")
 
-                    main = pd.concat([main, new], ignore_index=True)
-                    main.to_csv("qa_dataset.csv", index=False)
+                # ✏️ EDIT FIELDS
+                edited_answer = st.text_area(
+                    f"Answer {i}",
+                    value=row["answer"],
+                    key=f"answer_{i}"
+                )
 
-                    df = df.drop(i)
-                    df.to_csv("pending_qa.csv", index=False)
+                edited_scripture = st.text_input(
+                    f"Scripture {i}",
+                    value=row["scripture"],
+                    key=f"scripture_{i}"
+                )
 
-                    st.success("Approved")
-                    st.rerun()
+                edited_category = st.text_input(
+                    f"Category {i}",
+                    value=row["category"],
+                    key=f"category_{i}"
+                )
 
-            # REJECT
-            with col2:
-                if st.button("Reject", key=f"r{i}"):
+                col1, col2 = st.columns(2)
 
-                    df = df.drop(i)
-                    df.to_csv("pending_qa.csv", index=False)
+                # ✅ APPROVE
+                with col1:
+                    if st.button(f"Approve {i}"):
 
-                    st.warning("Rejected")
-                    st.rerun()
+                        new_row = {
+                            "user": row["user"],
+                            "question": row["question"],
+                            "answer": edited_answer,
+                            "scripture": edited_scripture,
+                            "category": edited_category,
+                            "question_norm": row["question"].lower(),
+                            "embedding": row.get("embedding", "")
+                        }
 
-            st.divider()
+                        try:
+                            df_main = pd.read_csv(main_file)
+                        except:
+                            df_main = pd.DataFrame(columns=df_pending.columns)
+
+                        df_main = pd.concat([df_main, pd.DataFrame([new_row])], ignore_index=True)
+                        df_main.to_csv(main_file, index=False)
+
+                        df_pending = df_pending.drop(df_pending.index[i])
+                        df_pending.to_csv(pending_file, index=False)
+
+                        st.success("Approved with edits")
+                        st.rerun()
+
+                # ❌ REJECT
+                with col2:
+                    if st.button(f"Reject {i}"):
+
+                        df_pending = df_pending.drop(df_pending.index[i])
+                        df_pending.to_csv(pending_file, index=False)
+
+                        st.warning("Rejected")
+                        st.rerun()
+
+                st.divider()
+
+        else:
+            st.warning("No pending Q&A")
 
     else:
-        st.warning("No pending Q&A")
+        st.error("pending_qa.csv not found")
 
     # ================= ADMIN CHAT =================
     st.subheader("💬 Admin Chat")
@@ -117,3 +202,7 @@ def admin_page():
         if st.button("🧹 Clear"):
             st.session_state.chat = []
             st.rerun()
+
+    # ================= HEALTH =================
+    st.subheader("🧠 System Health")
+    run_health_dashboard()

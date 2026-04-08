@@ -41,7 +41,7 @@ def chat_page():
         if st.button("🧹 Clear"):
             st.session_state.chat = []
             st.session_state.last_response = None
-            st.success("Chat cleared")
+            st.session_state.last_sermon = None
             st.rerun()
 
     with col3:
@@ -51,6 +51,14 @@ def chat_page():
         if st.button("🚪 Logout"):
             st.session_state.clear()
             st.rerun()
+
+    # ================= CLEAR CHAT BUTTON =================
+    if st.button("Clear Chat"):
+        st.session_state.chat = []
+        st.session_state.last_response = None
+        st.session_state.last_sermon = None
+        st.success("Chat cleared successfully")
+        st.rerun()
 
     # ================= CHAT HISTORY =================
     for role, message in st.session_state.chat:
@@ -77,11 +85,13 @@ def chat_page():
 
         update_time_used(st.session_state.get("username"))
 
-        # ===== SUMMARIZE SERMON =====
-        st.markdown("---")
-        st.subheader("📝 Summarize Sermon")
+    # ================= SERMON SUMMARY =================
+    if st.session_state.last_sermon:
 
-        colS1, colS2 = st.columns([2,1])
+        st.markdown("---")
+        st.subheader("📝 Sermon Summary")
+
+        colS1, colS2 = st.columns([2, 1])
 
         with colS1:
             sermon_words = st.number_input(
@@ -93,9 +103,9 @@ def chat_page():
             )
 
         with colS2:
-            if st.button("✨ Summarize Sermon"):
+            if st.button("Summarize Sermon"):
 
-                prompt = f"Summarize this sermon in {sermon_words} words:\n\n{clean_sermon}"
+                prompt = f"Summarize this sermon in {sermon_words} words:\n\n{st.session_state.last_sermon}"
 
                 summary = stream_response(
                     [{"role": "user", "content": prompt}],
@@ -119,28 +129,29 @@ def chat_page():
             st.success(f"You said: {text}")
             typed_input = text
 
-    # ================= TEXT INPUT =================
+    # ================= CHAT INPUT =================
     chat_input = st.chat_input("Ask Pastor Apugo AI...")
 
     if chat_input:
         typed_input = chat_input
 
-    # ================= BUTTONS (UNDER INPUT) =================
+    # ================= BUTTONS UNDER INPUT =================
     st.markdown("<br>", unsafe_allow_html=True)
 
     colA, colB = st.columns(2)
 
     with colA:
-        if st.button("🔄 Refresh", key="refresh_bottom"):
+        if st.button("🔄 Refresh", key="refresh_under_input"):
             st.rerun()
 
     with colB:
-        if st.button("🧹 Clear", key="clear_bottom"):
+        if st.button("🧹 Clear", key="clear_under_input"):
             st.session_state.chat = []
             st.session_state.last_response = None
+            st.session_state.last_sermon = None
             st.rerun()
 
-    # ================= PROCESS CHAT =================
+    # ================= PROCESS =================
     if typed_input:
 
         user_input = typed_input
@@ -209,13 +220,13 @@ def chat_page():
 
         st.success("Saved for admin approval")
 
-    # ================= SUMMARIZE CHAT =================
+    # ================= CHAT SUMMARY =================
     if st.session_state.last_response:
 
         st.markdown("---")
         st.subheader("📝 Summarize Message")
 
-        col1, col2 = st.columns([2,1])
+        col1, col2 = st.columns([2, 1])
 
         with col1:
             word_limit = st.number_input(
@@ -226,7 +237,7 @@ def chat_page():
             )
 
         with col2:
-            if st.button("✨ Summarize"):
+            if st.button("Summarize"):
 
                 prompt = f"Summarize this in {word_limit} words:\n\n{st.session_state.last_response}"
 

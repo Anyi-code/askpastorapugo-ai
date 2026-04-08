@@ -10,160 +10,23 @@ from datetime import datetime
 # ================= LOAD ENV =================
 load_dotenv()
 
-# ================= API =================
-def get_api_key():
-    try:
-        return st.secrets["OPENAI_API_KEY"]
-    except:
-        return os.getenv("OPENAI_API_KEY")
 
-client = OpenAI(api_key=get_api_key())
-
-# ================= STREAM RESPONSE =================
-def stream_response(messages, username, st_obj=None):
-
-    MASTER_PROMPT = """
-YOU ARE ASKPASTORAPUGO_AI — A BIBLE-BASED SCHOLAR, CHRIST-CENTERED, COMPASSIONATE, PROPHETIC TEACHING ASSISTANT.
-
-You speak with apostolic authority, deep revelation, and prophetic boldness,
-in the style of Bishop David Oyedepo and Apostle Arome Osai.
-
-NON-NEGOTIABLE RULES:
-- EVERY response MUST include scriptures written in full
-- EVERY response MUST point to Jesus Christ
-- EVERY response MUST end with a prophetic declaration
-- NEVER be shallow
-- NEVER be casual
-- ALWAYS TEACH WITH CLARITY AND DEPTH
-
-RESPONSE STRUCTURE (MANDATORY):
-
-CORE DEFINITION
-SCRIPTURAL AUTHORITY
-REVELATION DIMENSIONS
-CHRIST CONNECTION
-PRACTICAL IMPLICATION
-PROPHETIC DECLARATION
-
-IMPORTANT:
-- Each section must appear clearly
-- Do NOT merge sections
-- Do NOT collapse into one paragraph
-"""
-
-    try:
-        # 🔥 INJECT MASTER PROMPT (CRITICAL FIX)
-        messages = [{"role": "system", "content": MASTER_PROMPT}] + messages
-
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages
-        )
-
-        return response.choices[0].message.content
-
-    except Exception as e:
-        log_error(username, str(e), "stream_response")
-        return "An error occurred. Please try again."
-
-# ================= SERMON =================
-def generate_sermon(topic, username):
-    prompt = f"Generate a powerful sermon on: {topic}"
-
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return response.choices[0].message.content
-
-    except Exception as e:
-        log_error(username, str(e), "generate_sermon")
-        return "Error generating sermon."
-
-# ================= AUDIO TRANSCRIPTION =================
-def transcribe_audio(audio_file):
-    try:
-        import tempfile
-
-        # Save uploaded audio properly
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
-            tmp.write(audio_file.read())
-            tmp_path = tmp.name
-
-        # Send correct file format
-        with open(tmp_path, "rb") as f:
-            transcript = client.audio.transcriptions.create(
-                model="gpt-4o-mini-transcribe",
-                file=f
-            )
-
-        return transcript.text
-
-    except Exception as e:
-        log_error("unknown", str(e), "transcribe_audio")
-        return None
-
-# ================= EMBEDDING =================
-def get_embedding(text):
-    try:
-        response = client.embeddings.create(
-            model="text-embedding-3-small",
-            input=text
-        )
-        return response.data[0].embedding
-
-    except Exception as e:
-        log_error("system", str(e), "embedding")
-        return None
-
-# ================= FORMAT =================
-def enforce_format(response, username):
-    if not response.startswith(f"Dear {username}"):
-        response = f"Dear {username},\n\n" + response
-
-    if not response.strip().endswith("Remain Blessed"):
-        response = response.strip() + "\n\nRemain Blessed"
-
-    return response
-
-# ================= PREMIUM TEXT TO SPEECH =================
-def speak(text):
-    try:
-        response = client.audio.speech.create(
-            model="gpt-4o-mini-tts",
-            voice="alloy",
-            input=text
-        )
-
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
-            f.write(response.content)
-            audio_path = f.name
-
-        return audio_path
-
-    except Exception as e:
-        log_error("system", str(e), "speak")
-        return None
-
-# ================= TELEGRAM =================
+# ================= ERROR LOGGING FIRST (CRITICAL FIX) =================
 def send_telegram_alert(message):
-    BOT_TOKEN = os.getenv("BOT_TOKEN") or "8609344390:AAEKRxKl220-RPPmSzjtlpVCRmjaZQgUwD8"
-    CHAT_ID = os.getenv("CHAT_ID") or "1380080803"
+    BOT_TOKEN = os.getenv("BOT_TOKEN") or ""
+    CHAT_ID = os.getenv("CHAT_ID") or ""
+
+    if not BOT_TOKEN or not CHAT_ID:
+        return
 
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
-    payload = {
-        "chat_id": CHAT_ID,
-        "text": message
-    }
-
     try:
-        requests.post(url, data=payload)
+        requests.post(url, data={"chat_id": CHAT_ID, "text": message})
     except:
         pass
 
-# ================= ERROR LOGGING =================
+
 def log_error(username, error, location="unknown"):
 
     log_file = "error_logs.json"
@@ -185,13 +48,13 @@ Time: {log_entry['time']}
 
     send_telegram_alert(msg)
 
-    if os.path.exists(log_file):
-        with open(log_file, "r") as f:
-            try:
+    try:
+        if os.path.exists(log_file):
+            with open(log_file, "r") as f:
                 logs = json.load(f)
-            except:
-                logs = []
-    else:
+        else:
+            logs = []
+    except:
         logs = []
 
     logs.append(log_entry)
@@ -199,5 +62,123 @@ Time: {log_entry['time']}
     with open(log_file, "w") as f:
         json.dump(logs, f, indent=4)
 
-    if st.session_state.get("role") == "admin":
-        st.toast(f"🚨 Error: {error}")
+    try:
+        if st.session_state.get("role") == "admin":
+            st.toast(f"🚨 Error: {error}")
+    except:
+        pass
+
+
+# ================= API =================
+def get_api_key():
+    try:
+        return st.secrets["OPENAI_API_KEY"]
+    except:
+        return os.getenv("OPENAI_API_KEY")
+
+
+client = OpenAI(api_key=get_api_key())
+
+
+# ================= STREAM RESPONSE =================
+def stream_response(messages, username, st_obj=None):
+
+    MASTER_PROMPT = """
+YOU ARE ASKPASTORAPUGO_AI — A BIBLE-BASED SCHOLAR, CHRIST-CENTERED, COMPASSIONATE, PROPHETIC TEACHING ASSISTANT.
+
+- Always include scriptures
+- Always point to Jesus
+- Always end with prophetic declaration
+"""
+
+    try:
+        messages = [{"role": "system", "content": MASTER_PROMPT}] + messages
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages
+        )
+
+        return response.choices[0].message.content
+
+    except Exception as e:
+        log_error(username, e, "stream_response")
+        return "An error occurred. Please try again."
+
+
+# ================= SERMON =================
+def generate_sermon(topic, username):
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": f"Generate sermon on {topic}"}]
+        )
+        return response.choices[0].message.content
+
+    except Exception as e:
+        log_error(username, e, "generate_sermon")
+        return "Error generating sermon."
+
+
+# ================= AUDIO =================
+def transcribe_audio(audio_file):
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+            tmp.write(audio_file.read())
+            tmp_path = tmp.name
+
+        with open(tmp_path, "rb") as f:
+            transcript = client.audio.transcriptions.create(
+                model="gpt-4o-mini-transcribe",
+                file=f
+            )
+
+        return transcript.text
+
+    except Exception as e:
+        log_error("unknown", e, "transcribe_audio")
+        return None
+
+
+# ================= EMBEDDING =================
+def get_embedding(text):
+    try:
+        response = client.embeddings.create(
+            model="text-embedding-3-small",
+            input=text
+        )
+        return response.data[0].embedding
+
+    except Exception as e:
+        log_error("system", e, "embedding")
+        return None
+
+
+# ================= FORMAT =================
+def enforce_format(response, username):
+    if not response.startswith(f"Dear {username}"):
+        response = f"Dear {username},\n\n" + response
+
+    if not response.strip().endswith("Remain Blessed"):
+        response = response.strip() + "\n\nRemain Blessed"
+
+    return response
+
+
+# ================= TTS =================
+def speak(text):
+    try:
+        response = client.audio.speech.create(
+            model="gpt-4o-mini-tts",
+            voice="alloy",
+            input=text
+        )
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
+            f.write(response.content)
+            return f.name
+
+    except Exception as e:
+        log_error("system", e, "speak")
+        return None

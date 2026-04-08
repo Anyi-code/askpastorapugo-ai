@@ -12,19 +12,15 @@ from utils import (
     enforce_format
 )
 
-# 🔥 TIME CONTROL
 from access_control import enforce_time_access, update_time_used
 
 
-# ================= CHAT PAGE =================
 def chat_page():
 
     st.title("Ask Pastor Apugo AI")
 
-    # 🔥 ENFORCE TIME ACCESS
     enforce_time_access()
 
-    # ================= SESSION INIT =================
     if "chat" not in st.session_state:
         st.session_state.chat = []
 
@@ -48,99 +44,35 @@ def chat_page():
             st.session_state.clear()
             st.rerun()
 
-    # ================= PASSWORD CHANGE =================
-    with st.expander("🔐 Change Password"):
-        new_pw = st.text_input("New Password", type="password")
-        confirm_pw = st.text_input("Confirm Password", type="password")
-
-        if st.button("Update Password"):
-            if new_pw and new_pw == confirm_pw:
-
-                with open("users.json", "r") as f:
-                    data = json.load(f)
-
-                for user in data["users"]:
-                    if user["username"] == st.session_state["username"]:
-                        from auth import hash_pw
-                        user["password"] = hash_pw(new_pw)
-
-                with open("users.json", "w") as f:
-                    json.dump(data, f, indent=4)
-
-                st.success("Password updated successfully")
-            else:
-                st.error("Passwords do not match")
-
     # ================= CHAT HISTORY =================
     for role, message in st.session_state.chat:
         with st.chat_message(role):
             st.markdown(message)
 
-    # ================= SERMON GENERATOR =================
+    # ================= SERMON =================
     st.subheader("📖 Sermon Generator")
 
     sermon_topic = st.text_input("Enter sermon topic")
 
-    colA, colB = st.columns(2)
+    if st.button("Generate Sermon") and sermon_topic:
+        sermon = generate_sermon(sermon_topic, st.session_state.get("username"))
+        sermon = enforce_format(sermon, st.session_state.get("username"))
 
-    with colA:
-        if st.button("Generate Sermon"):
-            if sermon_topic:
+        clean_sermon = sermon.replace("\n", "\n\n")
 
-                sermon = generate_sermon(
-                    sermon_topic,
-                    st.session_state.get("username", "User")
-                )
+        st.session_state.chat.append(("assistant", clean_sermon))
+        st.markdown(clean_sermon)
 
-                sermon = enforce_format(
-                    sermon,
-                    st.session_state.get("username", "User")
-                )
-
-                clean_sermon = sermon.replace("\n", "\n\n")
-
-                with st.chat_message("assistant"):
-                    st.markdown(clean_sermon)
-
-                st.session_state.chat.append(("assistant", clean_sermon))
-
-                update_time_used(st.session_state.get("username"))
-
-    with colB:
-        if st.button("Clear Sermon"):
-            st.rerun()
+        update_time_used(st.session_state.get("username"))
 
     st.divider()
 
-    # ================= MICROPHONE =================
-    st.caption("🎤 Tap to speak (mobile supported)")
-
-    audio = st.audio_input("🎤 Tap and speak")
-
-    if audio is not None:
-        with st.spinner("Listening..."):
-            text = transcribe_audio(audio)
-
-        if text:
-            st.success(f"You said: {text}")
-
-            # 🔥 Treat voice input same as typed input
-            typed_input = text
-        else:
-            typed_input = None
-    else:
-        typed_input = None
-
-    # ================= TEXT INPUT =================
+    # ================= INPUT =================
     chat_input = st.chat_input("Ask Pastor Apugo AI...")
 
     if chat_input:
-        typed_input = chat_input
 
-    # ================= PROCESS MESSAGE =================
-    if typed_input:
-
-        user_input = typed_input
+        user_input = chat_input
 
         st.session_state.chat.append(("user", user_input))
 
@@ -156,76 +88,71 @@ def chat_page():
                 try:
                     response = stream_response(
                         [{"role": "user", "content": user_input}],
-                        st.session_state.get("username", "User"),
+                        st.session_state.get("username"),
                         st
                     )
                 except Exception as e:
                     st.error(f"AI ERROR: {e}")
-                    response = "AI failed. Check logs."
+                    response = "AI failed"
 
-                try:
-                    response = enforce_format(
-                        response,
-                        st.session_state.get("username", "User")
-                    )
-                except Exception as e:
-                    print("FORMAT ERROR:", e)
-
-                clean_response = str(response).replace("\n", "\n\n")
+                response = enforce_format(response, st.session_state.get("username"))
+                clean_response = response.replace("\n", "\n\n")
 
                 st.markdown(clean_response)
 
-                # ================= VOICE =================
                 try:
-                    audio_file = speak(response)
-                    if audio_file:
-                        st.audio(audio_file, format="audio/mp3")
-                except Exception as e:
-                    print("VOICE ERROR:", e)
+                    audio = speak(response)
+                    if audio:
+                        st.audio(audio)
+                except:
+                    pass
 
         st.session_state.chat.append(("assistant", clean_response))
-
-        # 🔥 UPDATE TIME
         update_time_used(st.session_state.get("username"))
 
-        # ================= SAVE TO pending_qa.csv =================
-        file_path = "pending_qa.csv"
-
-        columns = [
-            "user",
-            "question",
-            "answer",
-            "scripture",
-            "category",
-            "question_norm",
-            "embedding"
-        ]
+        # ================= SAVE =================
+        try:
+            df = pd.read_csv("pending_qa.csv").fillna("")
+        except:
+            df = pd.DataFrame(columns=[
+                "user","question","answer","scripture",
+                "category","question_norm","embedding"
+            ])
 
         try:
-            if not os.path.exists(file_path):
-                df = pd.DataFrame(columns=columns)
-            else:
-                df = pd.read_csv(file_path, dtype=str, engine="python").fillna("")
+            embedding = get_embedding(user_input)
+        except:
+            embedding = ""
 
-            try:
-                embedding = get_embedding(user_input)
-            except:
-                embedding = ""
+        new_row = pd.DataFrame([{
+            "user": st.session_state.get("username"),
+            "question": user_input,
+            "answer": clean_response,
+            "scripture": "",
+            "category": "",
+            "question_norm": user_input.lower(),
+            "embedding": embedding
+        }])
 
-            new_row = pd.DataFrame([{
-                "user": st.session_state.get("username", "User"),
-                "question": user_input,
-                "answer": clean_response,
-                "scripture": "",
-                "category": "",
-                "question_norm": user_input.lower(),
-                "embedding": embedding
-            }])
+        df = pd.concat([df, new_row], ignore_index=True)
+        df.to_csv("pending_qa.csv", index=False)
 
-            df = pd.concat([df, new_row], ignore_index=True)
-            df.to_csv(file_path, index=False)
+        st.success("Saved for admin approval")
 
-            st.success("Saved for admin approval")
+        # ================= SUMMARIZE =================
+        st.divider()
+        st.subheader("📝 Summarize")
 
-        except Exception as e:
-            st.error(f"SAVE ERROR: {e}")
+        word_limit = st.number_input("Word count", 10, 300, 50)
+
+        if st.button("Summarize"):
+            prompt = f"Summarize in {word_limit} words:\n{clean_response}"
+
+            summary = stream_response(
+                [{"role": "user", "content": prompt}],
+                st.session_state.get("username"),
+                st
+            )
+
+            st.markdown("### Summary")
+            st.markdown(summary)

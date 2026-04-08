@@ -20,8 +20,15 @@ def chat_page():
 
     enforce_time_access()
 
+    # ================= SESSION =================
     if "chat" not in st.session_state:
         st.session_state.chat = []
+
+    if "last_response" not in st.session_state:
+        st.session_state.last_response = None
+
+    if "last_sermon" not in st.session_state:
+        st.session_state.last_sermon = None
 
     # ================= TOP BAR =================
     col1, col2, col3, col4 = st.columns(4)
@@ -33,7 +40,8 @@ def chat_page():
     with col2:
         if st.button("🧹 Clear"):
             st.session_state.chat = []
-            st.session_state.pop("last_response", None)
+            st.session_state.last_response = None
+            st.success("Chat cleared")
             st.rerun()
 
     with col3:
@@ -65,9 +73,38 @@ def chat_page():
             st.markdown(clean_sermon)
 
         st.session_state.chat.append(("assistant", clean_sermon))
-        st.session_state["last_response"] = clean_sermon
+        st.session_state.last_sermon = clean_sermon
 
         update_time_used(st.session_state.get("username"))
+
+        # ===== SUMMARIZE SERMON =====
+        st.markdown("---")
+        st.subheader("📝 Summarize Sermon")
+
+        colS1, colS2 = st.columns([2,1])
+
+        with colS1:
+            sermon_words = st.number_input(
+                "Word limit",
+                min_value=20,
+                max_value=500,
+                value=100,
+                key="sermon_summary_words"
+            )
+
+        with colS2:
+            if st.button("✨ Summarize Sermon"):
+
+                prompt = f"Summarize this sermon in {sermon_words} words:\n\n{clean_sermon}"
+
+                summary = stream_response(
+                    [{"role": "user", "content": prompt}],
+                    st.session_state.get("username"),
+                    st
+                )
+
+                st.markdown("### 📌 Sermon Summary")
+                st.markdown(summary)
 
     st.divider()
 
@@ -88,7 +125,7 @@ def chat_page():
     if chat_input:
         typed_input = chat_input
 
-    # ================= LOWER BUTTONS =================
+    # ================= BUTTONS (UNDER INPUT) =================
     st.markdown("<br>", unsafe_allow_html=True)
 
     colA, colB = st.columns(2)
@@ -100,10 +137,10 @@ def chat_page():
     with colB:
         if st.button("🧹 Clear", key="clear_bottom"):
             st.session_state.chat = []
-            st.session_state.pop("last_response", None)
+            st.session_state.last_response = None
             st.rerun()
 
-    # ================= PROCESS =================
+    # ================= PROCESS CHAT =================
     if typed_input:
 
         user_input = typed_input
@@ -112,8 +149,6 @@ def chat_page():
 
         with st.chat_message("user"):
             st.markdown(user_input)
-
-        response = ""
 
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
@@ -141,7 +176,7 @@ def chat_page():
                     pass
 
         st.session_state.chat.append(("assistant", clean_response))
-        st.session_state["last_response"] = clean_response
+        st.session_state.last_response = clean_response
 
         update_time_used(st.session_state.get("username"))
 
@@ -174,13 +209,13 @@ def chat_page():
 
         st.success("Saved for admin approval")
 
-    # ================= SUMMARIZE =================
-    if "last_response" in st.session_state:
+    # ================= SUMMARIZE CHAT =================
+    if st.session_state.last_response:
 
         st.markdown("---")
         st.subheader("📝 Summarize Message")
 
-        col1, col2 = st.columns([2, 1])
+        col1, col2 = st.columns([2,1])
 
         with col1:
             word_limit = st.number_input(
@@ -193,7 +228,7 @@ def chat_page():
         with col2:
             if st.button("✨ Summarize"):
 
-                prompt = f"Summarize this in {word_limit} words:\n\n{st.session_state['last_response']}"
+                prompt = f"Summarize this in {word_limit} words:\n\n{st.session_state.last_response}"
 
                 summary = stream_response(
                     [{"role": "user", "content": prompt}],

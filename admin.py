@@ -1,12 +1,15 @@
 import streamlit as st
 import pandas as pd
-import os, json, random, string
+import os
+import json
+import random
+import string
 
 from health_dashboard import run_health_dashboard
 from access_control import assign_time_to_user
 
 
-# ================= LOAD DATA =================
+# ================= LOAD / SAVE =================
 def load_data():
     if not os.path.exists("users.json"):
         return {"users": [], "invites": []}
@@ -118,7 +121,6 @@ def admin_page():
                 st.markdown(f"👤 {row['user']}")
                 st.markdown(f"**Q:** {row['question']}")
 
-                # ✏️ EDIT FIELDS
                 edited_answer = st.text_area(
                     f"Answer {i}",
                     value=row["answer"],
@@ -141,7 +143,7 @@ def admin_page():
 
                 # ✅ APPROVE
                 with col1:
-                    if st.button(f"Approve {i}"):
+                    if st.button(f"Approve {i}", key=f"approve_{i}"):
 
                         new_row = {
                             "user": row["user"],
@@ -169,7 +171,7 @@ def admin_page():
 
                 # ❌ REJECT
                 with col2:
-                    if st.button(f"Reject {i}"):
+                    if st.button(f"Reject {i}", key=f"reject_{i}"):
 
                         df_pending = df_pending.drop(df_pending.index[i])
                         df_pending.to_csv(pending_file, index=False)
@@ -185,23 +187,9 @@ def admin_page():
     else:
         st.error("pending_qa.csv not found")
 
-    # ================= ADMIN CHAT =================
+    # ================= ADMIN CHAT (CLEAN) =================
     st.subheader("💬 Admin Chat")
-
     st.chat_input("Admin message...")
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        if st.button("🔄 Refresh"):
-            st.rerun()
-
-    with col2:
-        if st.button("🧹 Clear"):
-            st.session_state.chat = []
-            st.rerun()
 
     # ================= HEALTH =================
     st.subheader("🧠 System Health")

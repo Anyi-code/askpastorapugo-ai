@@ -1,5 +1,4 @@
 import streamlit as st
-import os
 import pandas as pd
 
 from utils import (
@@ -31,23 +30,15 @@ def chat_page():
         st.session_state.last_sermon = None
 
     # ================= TOP BAR =================
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
-        if st.button("🔄 Refresh (Top)"):
-            st.rerun()
-
-    with col2:
-        if st.button("🧹 Clear (Top)"):
-            st.session_state.chat = []
-            st.session_state.last_response = None
-            st.session_state.last_sermon = None
-            st.rerun()
-
-    with col3:
         st.caption(f"👤 {st.session_state.get('username','User')}")
 
-    with col4:
+    with col2:
+        pass
+
+    with col3:
         if st.button("🚪 Logout"):
             st.session_state.clear()
             st.rerun()
@@ -68,6 +59,7 @@ def chat_page():
         if st.button("Generate Sermon") and sermon_topic:
             sermon = generate_sermon(sermon_topic, st.session_state.get("username"))
             sermon = enforce_format(sermon, st.session_state.get("username"))
+
             clean_sermon = sermon.replace("\n", "\n\n")
 
             with st.chat_message("assistant"):
@@ -80,6 +72,7 @@ def chat_page():
 
     with colS2:
         if st.button("Summarize Sermon") and st.session_state.last_sermon:
+
             prompt = f"Summarize this sermon in 100 words:\n\n{st.session_state.last_sermon}"
 
             summary = stream_response(
@@ -115,22 +108,6 @@ def chat_page():
 
     if chat_input:
         typed_input = chat_input
-
-    # ================= ONLY BUTTON BLOCK (FINAL POSITION) =================
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    colA, colB = st.columns(2)
-
-    with colA:
-        if st.button("🔄 Refresh", key="only_refresh"):
-            st.rerun()
-
-    with colB:
-        if st.button("🧹 Clear", key="only_clear"):
-            st.session_state.chat = []
-            st.session_state.last_response = None
-            st.session_state.last_sermon = None
-            st.rerun()
 
     # ================= PROCESS =================
     if typed_input:

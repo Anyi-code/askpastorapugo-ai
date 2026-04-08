@@ -28,9 +28,6 @@ def chat_page():
     if "chat" not in st.session_state:
         st.session_state.chat = []
 
-    if "pending_input" not in st.session_state:
-        st.session_state.pending_input = None
-
     # ================= TOP BAR =================
     col1, col2, col3, col4 = st.columns(4)
 
@@ -126,25 +123,30 @@ def chat_page():
 
         if text:
             st.success(f"You said: {text}")
-            st.session_state.pending_input = text
+
+            # 🔥 Treat voice input same as typed input
+            typed_input = text
+        else:
+            typed_input = None
+    else:
+        typed_input = None
 
     # ================= TEXT INPUT =================
-    typed_input = st.chat_input("Ask Pastor Apugo AI...")
+    chat_input = st.chat_input("Ask Pastor Apugo AI...")
 
-    if typed_input:
-        st.session_state.pending_input = typed_input
+    if chat_input:
+        typed_input = chat_input
 
     # ================= PROCESS MESSAGE =================
-    if st.session_state.pending_input:
+    if typed_input:
 
-        user_input = st.session_state.pending_input
+        user_input = typed_input
 
         st.session_state.chat.append(("user", user_input))
 
         with st.chat_message("user"):
             st.markdown(user_input)
 
-        # ✅ PREVENT ALL NameErrors
         response = ""
         clean_response = ""
 
@@ -158,9 +160,8 @@ def chat_page():
                         st
                     )
                 except Exception as e:
-                    print("AI ERROR:", e)
-                    st.error("AI response failed")
-                    response = "Sorry, something went wrong."
+                    st.error(f"AI ERROR: {e}")
+                    response = "AI failed. Check logs."
 
                 try:
                     response = enforce_format(
@@ -170,7 +171,6 @@ def chat_page():
                 except Exception as e:
                     print("FORMAT ERROR:", e)
 
-                # ✅ ALWAYS DEFINED
                 clean_response = str(response).replace("\n", "\n\n")
 
                 st.markdown(clean_response)
@@ -185,6 +185,7 @@ def chat_page():
 
         st.session_state.chat.append(("assistant", clean_response))
 
+        # 🔥 UPDATE TIME
         update_time_used(st.session_state.get("username"))
 
         # ================= SAVE TO pending_qa.csv =================
@@ -206,11 +207,9 @@ def chat_page():
             else:
                 df = pd.read_csv(file_path, dtype=str, engine="python").fillna("")
 
-            # SAFE EMBEDDING
             try:
                 embedding = get_embedding(user_input)
-            except Exception as e:
-                print("EMBEDDING ERROR:", e)
+            except:
                 embedding = ""
 
             new_row = pd.DataFrame([{
@@ -226,12 +225,7 @@ def chat_page():
             df = pd.concat([df, new_row], ignore_index=True)
             df.to_csv(file_path, index=False)
 
-            print("✅ SAVED TO pending_qa.csv")
             st.success("Saved for admin approval")
 
-            # CLEAR INPUT
-            st.session_state.pending_input = None
-
         except Exception as e:
-            print("❌ SAVE ERROR:", e)
-            st.error("Failed to save question.")
+            st.error(f"SAVE ERROR: {e}")

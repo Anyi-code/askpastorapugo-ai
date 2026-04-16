@@ -6,7 +6,7 @@
 ![App Screenshot](Screenshot_20260416-133524.png)
 
 ### 🖥 Admin Interface
-![App Screenshot]()
+![App Screenshot](Screenshot_20260416-133605.png)
 
 ### 🤖 AI Response Example
 ![Response Screenshot](Screenshot_20260415-151106.png)

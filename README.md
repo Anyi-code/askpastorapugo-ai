@@ -10,9 +10,13 @@
 
 ### 🤖 AI Response Example
 ![Response Screenshot](Screenshot_20260415-151106.png)
+> 🔍 Example output from AskPastorApugo AI showing scripture-based teaching, explanation, and prayer response
 
 ### 🙏 Prayer Output
 ![Prayer Screenshot](Screenshot_20260415-152927.png)
+> 🔍 Example output from AskPastorApugo AI showing scripture-based response to an emergency suituation, explanation, and prayer response
+
+---
 
 An intelligent, Spirit-filled AI assistant designed to provide **biblical answers, prophetic insights, and structured spiritual guidance** using Artificial Intelligence.
 

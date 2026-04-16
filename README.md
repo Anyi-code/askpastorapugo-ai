@@ -19,7 +19,7 @@ AskPastorApugo AI is built to:
 
 ### 🧠 AI Chat System
 - Bible-based answers
-- Prophetic tone (Oyedepo style)
+- Prophetic and Apostolic tones 
 - Scripture included in every response
 
 ### 🙏 Prayer System

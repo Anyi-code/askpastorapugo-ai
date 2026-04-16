@@ -6,7 +6,7 @@
 ![App Screenshot](Screenshot_20260416-133524.png)
 
 ### 🤖 AI Response Example
-![Response Screenshot](link2)
+![Response Screenshot](Screenshot_20260415-151106.png)
 
 ### 🙏 Prayer Output
 ![Prayer Screenshot](link3)

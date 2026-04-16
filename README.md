@@ -5,6 +5,9 @@
 ### 🖥 Main Interface
 ![App Screenshot](Screenshot_20260416-133524.png)
 
+### 🖥 Admin Interface
+![App Screenshot]()
+
 ### 🤖 AI Response Example
 ![Response Screenshot](Screenshot_20260415-151106.png)
 

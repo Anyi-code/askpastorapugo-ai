@@ -3,16 +3,16 @@
 ## 📸 Application Preview
 
 ### 🖥 Main Interface
-![App Screenshot](Screenshot_20260416-133524.png)
+![App Screenshot](Screenshot_20260416-133605.png)
 
 ### 🖥 Admin Interface
-![App Screenshot](Screenshot_20260416-133605.png)
+![App Screenshot]()
 
 ### 🤖 AI Response Example
 ![Response Screenshot](Screenshot_20260415-151106.png)
 > 🔍 Example output from AskPastorApugo AI showing scripture-based teaching, explanation, and prayer response
 
-### 🙏 Prayer Output
+### 🙏 AI Response  Example 
 ![Prayer Screenshot](Screenshot_20260415-152927.png)
 > 🔍 Example output from AskPastorApugo AI showing scripture-based response to an emergency suituation, explanation, and prayer response
 

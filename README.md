@@ -9,7 +9,7 @@
 ![Response Screenshot](Screenshot_20260415-151106.png)
 
 ### 🙏 Prayer Output
-![Prayer Screenshot](link3)
+![Prayer Screenshot](Screenshot_20260415-152927.png)
 
 An intelligent, Spirit-filled AI assistant designed to provide **biblical answers, prophetic insights, and structured spiritual guidance** using Artificial Intelligence.
 

@@ -1,6 +1,8 @@
 # 🙏 AskPastorApugo AI
 
+
 ![App Screenshot](your-image-link)
+
 
 An intelligent, Spirit-filled AI assistant designed to provide **biblical answers, prophetic insights, and structured spiritual guidance** using Artificial Intelligence.
 

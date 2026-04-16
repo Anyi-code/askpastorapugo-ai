@@ -3,7 +3,7 @@
 ## 📸 Application Preview
 
 ### 🖥 Main Interface
-![App Screenshot](link1)
+![App Screenshot](Screenshot_20260416-133524.png)
 
 ### 🤖 AI Response Example
 ![Response Screenshot](link2)

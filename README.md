@@ -1,5 +1,15 @@
 # 🙏 AskPastorApugo AI
-![App Screenshot](your-image-link)
+
+## 📸 Application Preview
+
+### 🖥 Main Interface
+![App Screenshot](link1)
+
+### 🤖 AI Response Example
+![Response Screenshot](link2)
+
+### 🙏 Prayer Output
+![Prayer Screenshot](link3)
 
 An intelligent, Spirit-filled AI assistant designed to provide **biblical answers, prophetic insights, and structured spiritual guidance** using Artificial Intelligence.
 

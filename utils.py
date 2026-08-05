@@ -10,6 +10,10 @@ from datetime import datetime
 # ================= LOAD ENV =================
 load_dotenv()
 
+# ================= IMPORT PROMPTS =================
+from prompts.master_prompt import MASTER_PROMPT
+from prompts.sermon_prompt import SERMON_PROMPT
+
 
 # ================= ERROR LOGGING FIRST (CRITICAL FIX) =================
 def send_telegram_alert(message):
@@ -83,14 +87,6 @@ client = OpenAI(api_key=get_api_key())
 # ================= STREAM RESPONSE =================
 def stream_response(messages, username, st_obj=None):
 
-    MASTER_PROMPT = """
-YOU ARE ASKPASTORAPUGO_AI — A BIBLE-BASED SCHOLAR, CHRIST-CENTERED, COMPASSIONATE, PROPHETIC TEACHING ASSISTANT.
-
-- Always include scriptures
-- Always point to Jesus
-- Always end with prophetic declaration
-"""
-
     try:
         messages = [{"role": "system", "content": MASTER_PROMPT}] + messages
 
@@ -112,8 +108,18 @@ def generate_sermon(topic, username):
     try:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "user", "content": f"Generate sermon on {topic}"}]
+            messages=[
+                {
+                    "role": "system",
+                    "content": SERMON_PROMPT
+                },
+                {
+                    "role": "user",
+                    "content": topic
+                }
+            ]
         )
+
         return response.choices[0].message.content
 
     except Exception as e:
